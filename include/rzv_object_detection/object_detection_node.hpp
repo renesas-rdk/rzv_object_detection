@@ -34,8 +34,11 @@ private:
   // Model(s)
   std::unique_ptr<rzv_model::YOLOXModel> obj_detect_model_;
 
-  std::string model_path_;
   std::unique_ptr<ImageProcessor> image_processor_;
+  std::string model_path_;
+  std::vector<std::string> class_names_;
+  float confidence_threshold_;
+  float iou_threshold_;
 };
 
 }  // namespace rzv_object_detection

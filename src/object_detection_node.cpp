@@ -115,27 +115,48 @@ ObjectDetection::ObjectDetection() : Node("object_detection")
   RCLCPP_INFO(this->get_logger(), "Node object detection started!");
 
   // Declare parameters with default values
-  this->declare_parameter("image_topic", "/image_raw");
   this->declare_parameter("model_path", "");
   this->declare_parameter("processing_queue_size", 5);
+  this->declare_parameter("confidence_threshold", 0.5f);
+  this->declare_parameter("iou_threshold", 0.45f);
+  this->declare_parameter("class_names", std::vector<std::string>{});
 
-  std::string image_topic = this->get_parameter("image_topic").as_string();
   model_path_ = this->get_parameter("model_path").as_string();
   int queue_size = this->get_parameter("processing_queue_size").as_int();
+  confidence_threshold_ = this->get_parameter("confidence_threshold").as_double();
+  iou_threshold_ = this->get_parameter("iou_threshold").as_double();
+  class_names_ = this->get_parameter("class_names").as_string_array();
 
   // Initialize image processor
   image_processor_ = std::make_unique<ImageProcessor>(queue_size);
 
   // Create subscription to image topic
   subscription_ = this->create_subscription<sensor_msgs::msg::Image>(
-      image_topic, 10, std::bind(&ObjectDetection::image_callback, this, std::placeholders::_1));
+      "/image_raw", 10, std::bind(&ObjectDetection::image_callback, this, std::placeholders::_1));
 
   // Create publisher for bounding boxes
   bbox_publisher_ = this->create_publisher<geometry_msgs::msg::PoseArray>("bounding_box", 10);
+
+  RCLCPP_INFO(this->get_logger(), "ObjectDetection initialized");
+  RCLCPP_INFO(this->get_logger(), "Model path: %s", model_path_.c_str());
+  RCLCPP_INFO(this->get_logger(), "Image processing queue size: %d", queue_size);
+  RCLCPP_INFO(this->get_logger(), "Confidence threshold: %.2f", confidence_threshold_);
+  RCLCPP_INFO(this->get_logger(), "IoU threshold: %.2f", iou_threshold_);
+  RCLCPP_INFO(this->get_logger(), "Number of classes: %zu", class_names_.size());
+  RCLCPP_INFO(this->get_logger(), "Subscribing to image topic: %s", subscription_->get_topic_name());
   RCLCPP_INFO(this->get_logger(), "Publishing bounding boxes to: %s", bbox_publisher_->get_topic_name());
 
   // Create the model and load it
   obj_detect_model_ = std::make_unique<rzv_model::YOLOXModel>();
+
+  // Set model parameters
+  if (!class_names_.empty())
+  {
+    obj_detect_model_->set_class_names(class_names_);
+  }
+  obj_detect_model_->set_confidence_threshold(confidence_threshold_);
+  obj_detect_model_->set_iou_threshold(iou_threshold_);
+
   if (!obj_detect_model_->load(model_path_))
   {
     RCLCPP_ERROR(this->get_logger(), "Failed to load YOLOX model");

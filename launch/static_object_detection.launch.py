@@ -7,7 +7,7 @@ def generate_launch_description():
 
     # Create image publisher node
     pkg_dir = get_package_share_directory('rzv_object_detection')
-    test_image_path = os.path.join(pkg_dir, 'config/test/street.jpg')
+    test_image_path = os.path.join(pkg_dir, 'config/test/car.jpg')
     image_publisher_node = Node(
         package='image_publisher',
         executable='image_publisher_node',
@@ -28,25 +28,27 @@ def generate_launch_description():
         executable='object_detection',
         name='object_detection',
         parameters=[{
-            'image_topic': '/image_publisher/image_raw',
             'processing_queue_size': 1,
+            'confidence_threshold': 0.4,
+            'iou_threshold': 0.45,
         }],
         remappings=[
-            ('bounding_box', '/object_detection/bounding_box'),
+            ('/image_raw', '/image_publisher/image_raw'),
+            ('/bounding_box', '/object_detection/bounding_box'),
         ],
         output='screen',
-        arguments=['--ros-args', '--log-level', 'DEBUG']
+        arguments=['--ros-args', '--log-level', 'INFO']
     )
 
     # Add foxglove keypoint publisher node for bounding box visualization
     pkg_dir = get_package_share_directory('foxglove_keypoint_publisher')
-    hand_config_path = os.path.join(pkg_dir, 'config/poses/bounding_box.yaml')
+    pose_config_path = os.path.join(pkg_dir, 'config/poses/bounding_box.yaml')
     foxglove_hand_bbox_publisher_node = Node(
         package='foxglove_keypoint_publisher',
         executable='foxglove_keypoint_publisher_node',
         name='foxglove_hand_bbox_publisher',
         parameters=[{
-            'config_file': hand_config_path,
+            'config_file': pose_config_path,
         }],
         remappings=[
             ('/keypoint_poses', '/object_detection/bounding_box'),
