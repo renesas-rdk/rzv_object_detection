@@ -241,9 +241,10 @@ void ObjectDetection::process_image(sensor_msgs::msg::Image::SharedPtr msg)
           if (detection.is_valid)
           {
             has_valid_detections = true;
-            RCLCPP_INFO(this->get_logger(), "Detected %s at: %d, %d, %d, %d with score %0.2f",
-                        detection.class_name.c_str(), detection.bbox.x, detection.bbox.y, detection.bbox.width,
-                        detection.bbox.height, detection.confidence);
+            RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
+                                 "Detected %s at: %d, %d, %d, %d with score %0.2f", detection.class_name.c_str(),
+                                 detection.bbox.x, detection.bbox.y, detection.bbox.width, detection.bbox.height,
+                                 detection.confidence);
 
             // Add bounding box to the pose array
             add_bbox_to_pose_array(*pose_array, detection.bbox);
