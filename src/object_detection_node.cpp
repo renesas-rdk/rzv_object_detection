@@ -116,12 +116,15 @@ ObjectDetection::ObjectDetection() : Node("object_detection")
 
   // Declare parameters with default values
   this->declare_parameter("model_path", "");
+  this->declare_parameter("model_type", "yolox");
   this->declare_parameter("processing_queue_size", 5);
   this->declare_parameter("confidence_threshold", 0.5f);
   this->declare_parameter("iou_threshold", 0.45f);
   this->declare_parameter("class_names", std::vector<std::string>{});
 
+  // Get parameters
   model_path_ = this->get_parameter("model_path").as_string();
+  model_type_ = this->get_parameter("model_type").as_string();
   int queue_size = this->get_parameter("processing_queue_size").as_int();
   confidence_threshold_ = this->get_parameter("confidence_threshold").as_double();
   iou_threshold_ = this->get_parameter("iou_threshold").as_double();
@@ -137,8 +140,10 @@ ObjectDetection::ObjectDetection() : Node("object_detection")
   // Create publisher for bounding boxes
   bbox_publisher_ = this->create_publisher<geometry_msgs::msg::PoseArray>("bounding_box", 10);
 
+  // Log configuration
   RCLCPP_INFO(this->get_logger(), "ObjectDetection initialized");
   RCLCPP_INFO(this->get_logger(), "Model path: %s", model_path_.c_str());
+  RCLCPP_INFO(this->get_logger(), "Model type: %s", model_type_.c_str());
   RCLCPP_INFO(this->get_logger(), "Image processing queue size: %d", queue_size);
   RCLCPP_INFO(this->get_logger(), "Confidence threshold: %.2f", confidence_threshold_);
   RCLCPP_INFO(this->get_logger(), "IoU threshold: %.2f", iou_threshold_);
@@ -146,8 +151,18 @@ ObjectDetection::ObjectDetection() : Node("object_detection")
   RCLCPP_INFO(this->get_logger(), "Subscribing to image topic: %s", subscription_->get_topic_name());
   RCLCPP_INFO(this->get_logger(), "Publishing bounding boxes to: %s", bbox_publisher_->get_topic_name());
 
-  // Create the model and load it
-  obj_detect_model_ = std::make_unique<rzv_model::YOLOXModel>();
+  // Create the model based on type and load it
+  if (model_type_ == "yolox_hand")
+  {
+    obj_detect_model_ = std::make_unique<rzv_model::YOLOXHandModel>();
+    RCLCPP_INFO(this->get_logger(), "Using YOLOX Hand model");
+  }
+  else
+  {
+    // Default to standard YOLOX model
+    obj_detect_model_ = std::make_unique<rzv_model::YOLOXModel>();
+    RCLCPP_INFO(this->get_logger(), "Using standard YOLOX model");
+  }
 
   // Set model parameters
   if (!class_names_.empty())
@@ -159,7 +174,7 @@ ObjectDetection::ObjectDetection() : Node("object_detection")
 
   if (!obj_detect_model_->load(model_path_))
   {
-    RCLCPP_ERROR(this->get_logger(), "Failed to load YOLOX model");
+    RCLCPP_ERROR(this->get_logger(), "Failed to load YOLOX model from %s", model_path_.c_str());
   }
   else
   {

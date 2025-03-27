@@ -7,7 +7,7 @@ def generate_launch_description():
 
     # Create image publisher node
     pkg_dir = get_package_share_directory('rzv_object_detection')
-    test_image_path = os.path.join(pkg_dir, 'config/test/car.jpg')
+    test_image_path = os.path.join(pkg_dir, 'config/test/hand_5.png')
     image_publisher_node = Node(
         package='image_publisher',
         executable='image_publisher_node',
@@ -28,7 +28,7 @@ def generate_launch_description():
         executable='object_detection',
         name='object_detection',
         parameters=[{
-            'model_type': 'yolox', # Pre-packaged model based on Pascal VOC dataset
+            'model_type': 'yolox_hand', # Pre-packaged model, no separate file needed
             'processing_queue_size': 1,
             'confidence_threshold': 0.4,
             'iou_threshold': 0.45,

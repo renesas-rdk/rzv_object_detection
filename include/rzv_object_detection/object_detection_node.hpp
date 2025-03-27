@@ -8,6 +8,7 @@
 #include <geometry_msgs/msg/pose_array.hpp>
 
 #include "rzv_model/yolox_model.hpp"
+#include "rzv_model/yolox_hand_model.hpp"
 
 namespace rzv_object_detection
 {
@@ -36,6 +37,7 @@ private:
 
   std::unique_ptr<ImageProcessor> image_processor_;
   std::string model_path_;
+  std::string model_type_;
   std::vector<std::string> class_names_;
   float confidence_threshold_;
   float iou_threshold_;

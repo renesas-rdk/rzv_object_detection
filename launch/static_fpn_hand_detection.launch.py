@@ -31,6 +31,7 @@ def generate_launch_description():
         name='object_detection',
         parameters=[{
             'model_path': model_path,
+            'model_type': 'yolox',
             'processing_queue_size': 1,
             'confidence_threshold': 0.4,
             'iou_threshold': 0.45,
