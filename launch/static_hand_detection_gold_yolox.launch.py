@@ -17,6 +17,7 @@ def generate_launch_description():
             'publish_rate': 1.0
         }],
         remappings=[
+            # publish camera info and image raw topics
             ('/camera_info', '/image_publisher/camera_info'),
              ('/image_raw', '/image_publisher/image_raw'),
        ]
@@ -28,13 +29,15 @@ def generate_launch_description():
         executable='object_detection',
         name='object_detection',
         parameters=[{
-            'model_type': 'yolox_hand', # Pre-packaged model, no separate file needed
+            'model_type': 'gold_yolox_hand',
             'processing_queue_size': 1,
             'confidence_threshold': 0.4,
             'iou_threshold': 0.45,
         }],
         remappings=[
+            # subscribe to image raw topic
             ('/image_raw', '/image_publisher/image_raw'),
+            # publish bounding box topic
             ('/bounding_box', '/object_detection/bounding_box'),
         ],
         output='screen',
@@ -52,7 +55,9 @@ def generate_launch_description():
             'config_file': pose_config_path,
         }],
         remappings=[
+            # subscribe to bounding box topic
             ('/keypoint_poses', '/object_detection/bounding_box'),
+            # publish visualization topic
             ('/keypoint_visualization', '/keypoint_visualization')
         ],
         output='screen'

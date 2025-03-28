@@ -6,6 +6,7 @@ from launch_ros.actions import Node
 def generate_launch_description():
 
     # Create camera node using v4l2_camera
+    # Puplishes images via default /image_raw topic
     camera_node = Node(
         package='v4l2_camera',
         executable='v4l2_camera_node',
@@ -13,28 +14,25 @@ def generate_launch_description():
         parameters=[{
             'video_device': '/dev/video0',
             'output_encoding': 'yuv422_yuy2',
-            'image_size': [640, 480] # check the camera resolution
+            'image_size': [640, 480] # make sure to set the correct image size
         }]
     )
 
     # Create object detection node
-    pkg_dir = get_package_share_directory('rzv_object_detection')
-    model_path = os.path.join(pkg_dir, 'config/models/yolox_hand')
     object_detection_node = Node(
         package='rzv_object_detection',
         executable='object_detection',
         name='object_detection',
         parameters=[{
-            'model_path': model_path,
+            'model_type': 'yolox_hand',
             'processing_queue_size': 1,
             'confidence_threshold': 0.8,
             'iou_threshold': 0.45,
-            'class_names': [
-                'hand'
-            ]
         }],
         remappings=[
+            # subscribe to image raw topic
             ('/image_raw', '/image_raw'),
+            # publish bounding box topic
             ('/bounding_box', '/object_detection/bounding_box'),
         ],
         output='screen',
@@ -52,7 +50,9 @@ def generate_launch_description():
             'config_file': pose_config_path,
         }],
         remappings=[
+            # subscribe to bounding box topic
             ('/keypoint_poses', '/object_detection/bounding_box'),
+            # publish visualization topic
             ('/keypoint_visualization', '/keypoint_visualization')
         ],
         output='screen'

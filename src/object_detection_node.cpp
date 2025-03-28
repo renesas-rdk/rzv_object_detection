@@ -116,7 +116,7 @@ ObjectDetection::ObjectDetection() : Node("object_detection")
 
   // Declare parameters with default values
   this->declare_parameter("model_path", "");
-  this->declare_parameter("model_type", "yolox");
+  this->declare_parameter("model_type", "yolox_pascal_voc");
   this->declare_parameter("processing_queue_size", 5);
   this->declare_parameter("confidence_threshold", 0.5f);
   this->declare_parameter("iou_threshold", 0.45f);
@@ -152,15 +152,24 @@ ObjectDetection::ObjectDetection() : Node("object_detection")
   RCLCPP_INFO(this->get_logger(), "Publishing bounding boxes to: %s", bbox_publisher_->get_topic_name());
 
   // Create the model based on type and load it
-  if (model_type_ == "yolox_hand")
+  if (model_type_ == "gold_yolox_hand")
   {
-    obj_detect_model_ = std::make_unique<rzv_model::YOLOXHandModel>();
+    obj_detect_model_ = std::make_unique<rzv_model::GoldYoloxHandModel>();
     RCLCPP_INFO(this->get_logger(), "Using YOLOX Hand model");
+  }
+  else if (model_type_ == "yolox_hand")
+  {
+    obj_detect_model_ = std::make_unique<rzv_model::YoloxHandModel>();
+    RCLCPP_INFO(this->get_logger(), "Using YOLOX Hand model");
+  }
+  else if (model_type_ == "yolox_pascal_voc")
+  {
+    obj_detect_model_ = std::make_unique<rzv_model::YoloxPascalVocModel>();
+    RCLCPP_INFO(this->get_logger(), "Using YOLOX Pascal VOC model");
   }
   else
   {
-    // Default to standard YOLOX model
-    obj_detect_model_ = std::make_unique<rzv_model::YOLOXModel>();
+    obj_detect_model_ = std::make_unique<rzv_model::YoloxModel>();
     RCLCPP_INFO(this->get_logger(), "Using standard YOLOX model");
   }
 

@@ -7,8 +7,9 @@
 #include "sensor_msgs/msg/image.hpp"
 #include <geometry_msgs/msg/pose_array.hpp>
 
-#include "rzv_model/yolox_model.hpp"
+#include "rzv_model/yolox_pascal_voc_model.hpp"
 #include "rzv_model/yolox_hand_model.hpp"
+#include "rzv_model/gold_yolox_hand_model.hpp"
 
 namespace rzv_object_detection
 {
@@ -33,7 +34,7 @@ private:
   rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr bbox_publisher_;
 
   // Model(s)
-  std::unique_ptr<rzv_model::YOLOXModel> obj_detect_model_;
+  std::unique_ptr<rzv_model::YoloxModel> obj_detect_model_;
 
   std::unique_ptr<ImageProcessor> image_processor_;
   std::string model_path_;
