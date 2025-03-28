@@ -25,7 +25,6 @@ public:
 private:
   void image_callback(const sensor_msgs::msg::Image::SharedPtr msg);
   void process_image(sensor_msgs::msg::Image::SharedPtr msg);
-  void add_bbox_to_pose_array(geometry_msgs::msg::PoseArray& pose_array, const cv::Rect& bbox);
 
   // Subscription
   rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr subscription_;

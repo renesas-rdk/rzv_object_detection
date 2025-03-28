@@ -276,8 +276,9 @@ void ObjectDetection::process_image(sensor_msgs::msg::Image::SharedPtr msg)
                                  detection.bbox.x, detection.bbox.y, detection.bbox.width, detection.bbox.height,
                                  detection.confidence);
 
-            // Add bounding box to the pose array
-            add_bbox_to_pose_array(*pose_array, detection.bbox);
+            // Add bounding box to the pose array with class label and confidence
+            rzv_model::Utils::encode_bounding_box_to_poses(*pose_array, detection.bbox, detection.class_name,
+                                                           detection.class_id, detection.confidence);
           }
         }
 
@@ -295,45 +296,6 @@ void ObjectDetection::process_image(sensor_msgs::msg::Image::SharedPtr msg)
   }
 
   RCLCPP_DEBUG(this->get_logger(), "Finished processing image");
-}
-
-void ObjectDetection::add_bbox_to_pose_array(geometry_msgs::msg::PoseArray& pose_array, const cv::Rect& bbox)
-{
-  float x1 = static_cast<float>(bbox.x);
-  float y1 = static_cast<float>(bbox.y);
-  float x2 = static_cast<float>(bbox.x + bbox.width);
-  float y2 = static_cast<float>(bbox.y + bbox.height);
-  float z1 = 0.0f;  // Front plane
-  float z2 = 0.0f;  // Back plane (same as front for 2D bbox)
-
-  // Bottom face (z=0)
-  std::vector<std::array<float, 3>> corners = {
-    { x1, y1, z1 },  // 0: bottom-left-front
-    { x2, y1, z1 },  // 1: bottom-right-front
-    { x2, y2, z1 },  // 2: bottom-right-back
-    { x1, y2, z1 },  // 3: bottom-left-back
-
-    // Top face (z=0 for 2D bbox, would be z2 for 3D)
-    { x1, y1, z2 },  // 4: top-left-front
-    { x2, y1, z2 },  // 5: top-right-front
-    { x2, y2, z2 },  // 6: top-right-back
-    { x1, y2, z2 }   // 7: top-left-back
-  };
-
-  // Add each corner as a pose
-  for (const auto& corner : corners)
-  {
-    geometry_msgs::msg::Pose pose;
-    pose.position.x = corner[0];
-    pose.position.y = corner[1];
-    pose.position.z = corner[2];
-    pose.orientation.w = 1.0;  // Identity quaternion
-    pose.orientation.x = 0.0;
-    pose.orientation.y = 0.0;
-    pose.orientation.z = 0.0;
-
-    pose_array.poses.push_back(pose);
-  }
 }
 
 }  // namespace rzv_object_detection
