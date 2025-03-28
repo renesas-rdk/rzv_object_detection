@@ -5,110 +5,15 @@
 #include <atomic>
 #include <unistd.h>
 #include <geometry_msgs/msg/pose.hpp>
+#include <rclcpp/executors/multi_threaded_executor.hpp>
+
 #include "rzv_object_detection/object_detection_node.hpp"
 #include "rzv_model/utils.hpp"
+#include "rzv_model/yolox_pascal_voc_model.hpp"
+#include "rzv_model/gold_yolox_hand_model.hpp"
 
 namespace rzv_object_detection
 {
-
-class ImageProcessor
-{
-public:
-  ImageProcessor(int max_queue_size = 5) : running_(true), max_queue_size_(max_queue_size)
-  {
-    processing_thread_ = std::thread(&ImageProcessor::process_loop, this);
-  }
-
-  ~ImageProcessor()
-  {
-    {
-      std::unique_lock<std::mutex> lock(queue_mutex_);
-      running_ = false;
-      condition_.notify_all();
-    }
-    if (processing_thread_.joinable())
-    {
-      processing_thread_.join();
-    }
-  }
-
-  // Add an image to the processing queue
-  bool add_task(sensor_msgs::msg::Image::SharedPtr msg,
-                std::function<void(sensor_msgs::msg::Image::SharedPtr)> process_func)
-  {
-    std::lock_guard<std::mutex> lock(queue_mutex_);
-
-    // Check if queue is full
-    if (tasks_.size() >= static_cast<size_t>(max_queue_size_))
-    {
-      // Drop oldest image and log this
-      tasks_.pop();
-      dropped_frames_++;
-      if (dropped_frames_ % 10 == 1)
-      {  // Log only every 10th drop to avoid flooding
-        // Note: Can't use RCLCPP_WARN here since we're outside the node class
-        std::cerr << "Warning: Processing queue full, dropped " << dropped_frames_
-                  << " frames so far. Consider increasing queue size." << std::endl;
-      }
-    }
-
-    tasks_.push(std::make_pair(msg, process_func));
-    condition_.notify_one();
-    return true;
-  }
-
-private:
-  void process_loop()
-  {
-    while (running_)
-    {
-      std::function<void(sensor_msgs::msg::Image::SharedPtr)> process_func;
-      sensor_msgs::msg::Image::SharedPtr msg;
-
-      {
-        std::unique_lock<std::mutex> lock(queue_mutex_);
-        condition_.wait(lock, [this] { return !tasks_.empty() || !running_; });
-
-        if (!running_)
-        {
-          // Process remaining tasks before exiting if requested
-          if (tasks_.empty())
-            break;
-        }
-
-        if (!tasks_.empty())
-        {
-          auto task = tasks_.front();
-          msg = task.first;
-          process_func = task.second;
-          tasks_.pop();
-        }
-      }
-
-      // Process the image outside the lock
-      if (msg && process_func)
-      {
-        try
-        {
-          process_func(msg);
-        }
-        catch (const std::exception& e)
-        {
-          std::cerr << "Exception in image processing: " << e.what() << std::endl;
-        }
-      }
-    }
-  }
-
-  std::thread processing_thread_;
-  std::mutex queue_mutex_;
-  std::condition_variable condition_;
-  std::queue<std::pair<sensor_msgs::msg::Image::SharedPtr, std::function<void(sensor_msgs::msg::Image::SharedPtr)>>>
-      tasks_;
-  std::atomic<bool> running_;
-  int max_queue_size_;
-  int dropped_frames_ = 0;
-};
 
 ObjectDetection::ObjectDetection() : Node("object_detection")
 {
@@ -121,6 +26,7 @@ ObjectDetection::ObjectDetection() : Node("object_detection")
   this->declare_parameter("confidence_threshold", 0.5f);
   this->declare_parameter("iou_threshold", 0.45f);
   this->declare_parameter("class_names", std::vector<std::string>{});
+  this->declare_parameter("processing_threads", 1);  // Default to 1 for sequential processing
 
   // Get parameters
   model_path_ = this->get_parameter("model_path").as_string();
@@ -130,12 +36,22 @@ ObjectDetection::ObjectDetection() : Node("object_detection")
   iou_threshold_ = this->get_parameter("iou_threshold").as_double();
   class_names_ = this->get_parameter("class_names").as_string_array();
 
-  // Initialize image processor
-  image_processor_ = std::make_unique<ImageProcessor>(queue_size);
+  // Create a mutually exclusive callback group - ensures one callback runs at a time
+  callback_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+
+  // Configure QoS with queue depth and frame dropping policy
+  auto qos = rclcpp::QoS(queue_size);
+  qos.keep_last(queue_size);  // Only keep latest frames
+  qos.reliable();             // Or use best_effort() for more aggressive dropping
+  qos.durability_volatile();  // Don't persist old messages
+
+  // Set subscription options with callback group
+  rclcpp::SubscriptionOptions options;
+  options.callback_group = callback_group_;
 
   // Create subscription to image topic
-  subscription_ = this->create_subscription<sensor_msgs::msg::Image>(
-      "/image_raw", 10, std::bind(&ObjectDetection::image_callback, this, std::placeholders::_1));
+  image_subscription_ = this->create_subscription<sensor_msgs::msg::Image>(
+      "/image_raw", qos, std::bind(&ObjectDetection::process_image, this, std::placeholders::_1), options);
 
   // Create publisher for bounding boxes
   bbox_publisher_ = this->create_publisher<geometry_msgs::msg::PoseArray>("bounding_box", 10);
@@ -148,7 +64,7 @@ ObjectDetection::ObjectDetection() : Node("object_detection")
   RCLCPP_INFO(this->get_logger(), "Confidence threshold: %.2f", confidence_threshold_);
   RCLCPP_INFO(this->get_logger(), "IoU threshold: %.2f", iou_threshold_);
   RCLCPP_INFO(this->get_logger(), "Number of classes: %zu", class_names_.size());
-  RCLCPP_INFO(this->get_logger(), "Subscribing to image topic: %s", subscription_->get_topic_name());
+  RCLCPP_INFO(this->get_logger(), "Subscribing to image topic: %s", image_subscription_->get_topic_name());
   RCLCPP_INFO(this->get_logger(), "Publishing bounding boxes to: %s", bbox_publisher_->get_topic_name());
 
   // Create the model based on type and load it
@@ -181,28 +97,28 @@ ObjectDetection::ObjectDetection() : Node("object_detection")
   obj_detect_model_->set_confidence_threshold(confidence_threshold_);
   obj_detect_model_->set_iou_threshold(iou_threshold_);
 
+  // Load the model
   if (!obj_detect_model_->load(model_path_))
   {
     RCLCPP_ERROR(this->get_logger(), "Failed to load YOLOX model from %s", model_path_.c_str());
   }
   else
   {
-    RCLCPP_INFO(this->get_logger(), "YOLOX model loaded successfully");
+    RCLCPP_INFO(this->get_logger(), "YOLOX Model %s loaded successfully", model_type_.c_str());
   }
 }
 
 ObjectDetection::~ObjectDetection()
 {
   RCLCPP_INFO(this->get_logger(), "Cleaning up resources...");
-  subscription_.reset();
-  obj_detect_model_.reset();
+  image_subscription_.reset();
   bbox_publisher_.reset();
-  image_processor_.reset();
+  obj_detect_model_.reset();
 }
 
-void ObjectDetection::image_callback(const sensor_msgs::msg::Image::SharedPtr msg)
+void ObjectDetection::process_image(const sensor_msgs::msg::Image::SharedPtr msg)
 {
-  // Quick check - don't even queue if model not loaded
+  // Quick check - don't process if model not loaded
   if (!obj_detect_model_ || !obj_detect_model_->is_loaded())
   {
     RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000, "Model not loaded, skipping processing");
@@ -213,13 +129,7 @@ void ObjectDetection::image_callback(const sensor_msgs::msg::Image::SharedPtr ms
   RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 1000, "Received image: %dx%d, encoding: %s", msg->width,
                        msg->height, msg->encoding.c_str());
 
-  // Add task to processing queue - use shared_ptr to avoid copying
-  image_processor_->add_task(msg, [this](sensor_msgs::msg::Image::SharedPtr msg) { this->process_image(msg); });
-}
-
-void ObjectDetection::process_image(sensor_msgs::msg::Image::SharedPtr msg)
-{
-  RCLCPP_DEBUG(this->get_logger(), "Processing image in dedicated thread");
+  RCLCPP_DEBUG(this->get_logger(), "Processing image in executor thread");
 
   // Convert the image to YUV422 (YUY2) format which is what our model expects
   cv::Mat image;
@@ -303,11 +213,20 @@ void ObjectDetection::process_image(sensor_msgs::msg::Image::SharedPtr msg)
 int main(int argc, char* argv[])
 {
   rclcpp::init(argc, argv);
-  {
-    auto node = std::make_shared<rzv_object_detection::ObjectDetection>();
-    rclcpp::spin(node);
-    node.reset();
-  }
+
+  // Create node first to access parameters
+  auto node = std::make_shared<rzv_object_detection::ObjectDetection>();
+
+  // Get processing threads from parameter
+  int thread_count = node->get_parameter("processing_threads").as_int();
+
+  // Create multi-threaded executor with configured threads
+  // Using 1 thread ensures sequential processing similar to original code
+  rclcpp::executors::MultiThreadedExecutor executor(rclcpp::ExecutorOptions(), thread_count);
+
+  executor.add_node(node);
+  executor.spin();
+
   rclcpp::shutdown();
   return 0;
 }
