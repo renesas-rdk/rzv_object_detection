@@ -223,6 +223,12 @@ void ObjectDetection::process_image(sensor_msgs::msg::Image::SharedPtr msg)
       cv::Mat bgr_image(msg->height, msg->width, CV_8UC3, const_cast<unsigned char*>(msg->data.data()));
       image = rzv_model::Utils::bgr_to_yuv422(bgr_image, rzv_model::YUV422Format::YUYV);
     }
+    else if (msg->encoding == "rgba8")
+    {
+      // Convert RGBA to YUV422 (yuv422_yuy2)
+      cv::Mat rgba_image(msg->height, msg->width, CV_8UC4, const_cast<unsigned char*>(msg->data.data()));
+      image = rzv_model::Utils::rgba_to_yuv422(rgba_image, rzv_model::YUV422Format::YUYV);
+    }
     else if (msg->encoding == "yuv422" || msg->encoding == "yuv422_yuy2")
     {
       // Already in YUV422_YUY2 format, just create a view (zero-copy)
