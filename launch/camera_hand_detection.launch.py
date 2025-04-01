@@ -27,7 +27,7 @@ def generate_launch_description():
             'model_type': 'yolox_hand',
             'processing_queue_size': 1,
             'confidence_threshold': 0.8,
-            'iou_threshold': 0.45,
+            'iou_threshold': 0.3,
         }],
         remappings=[
             # subscribe to image raw topic

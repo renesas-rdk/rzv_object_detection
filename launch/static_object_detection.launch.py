@@ -31,8 +31,8 @@ def generate_launch_description():
         parameters=[{
             'model_type': 'yolox_pascal_voc',
             'processing_queue_size': 1,
-            'confidence_threshold': 0.4,
-            'iou_threshold': 0.45,
+            'confidence_threshold': 0.5,
+            'iou_threshold': 0.3,
         }],
         remappings=[
             # subscribe to image raw topic
