@@ -85,8 +85,8 @@ ObjectDetection::ObjectDetection() : Node("object_detection")
   }
   else
   {
+    RCLCPP_WARN(this->get_logger(), "Unrecognized model type: %s, using YOLOX model by default", model_type_.c_str());
     obj_detect_model_ = std::make_unique<rzv_model::YoloxModel>();
-    RCLCPP_INFO(this->get_logger(), "Using standard YOLOX model");
   }
 
   // Set model parameters
@@ -161,7 +161,7 @@ void ObjectDetection::process_image(const sensor_msgs::msg::Image::SharedPtr msg
 
     // Run object detection model
     auto input = rzv_model::ModelInput{ image, cv::Rect(0, 0, image.cols, image.rows) };
-    auto result = obj_detect_model_->run(input);
+    auto result = obj_detect_model_->run<rzv_model::YOLOXDetectionResult>(input);
     if (result)
     {
       // Create pose array for all valid detections
