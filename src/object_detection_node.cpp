@@ -162,41 +162,35 @@ void ObjectDetection::process_image(const sensor_msgs::msg::Image::SharedPtr msg
     // Run object detection model
     auto input = rzv_model::ModelInput{ image, cv::Rect(0, 0, image.cols, image.rows) };
     auto result = obj_detect_model_->run(input);
-
-    // Output the results
     if (result)
     {
-      auto detection_result = dynamic_cast<rzv_model::YOLOXDetectionResult*>(result.get());
-      if (detection_result)
+      // Create pose array for all valid detections
+      auto pose_array = std::make_unique<geometry_msgs::msg::PoseArray>();
+      pose_array->header.stamp = this->now();
+      pose_array->header.frame_id = "camera_frame";
+
+      bool has_valid_detections = false;
+
+      for (const auto& detection : result->detections)
       {
-        // Create pose array for all valid detections
-        auto pose_array = std::make_unique<geometry_msgs::msg::PoseArray>();
-        pose_array->header.stamp = this->now();
-        pose_array->header.frame_id = "camera_frame";
-
-        bool has_valid_detections = false;
-
-        for (const auto& detection : detection_result->detections)
+        if (detection.is_valid)
         {
-          if (detection.is_valid)
-          {
-            has_valid_detections = true;
-            RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
-                                 "Detected %s at: %d, %d, %d, %d with score %0.2f", detection.class_name.c_str(),
-                                 detection.bbox.x, detection.bbox.y, detection.bbox.width, detection.bbox.height,
-                                 detection.confidence);
+          has_valid_detections = true;
+          RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
+                               "Detected %s at: %d, %d, %d, %d with score %0.2f", detection.class_name.c_str(),
+                               detection.bbox.x, detection.bbox.y, detection.bbox.width, detection.bbox.height,
+                               detection.confidence);
 
-            // Add bounding box to the pose array with class label and confidence
-            rzv_model::Utils::encode_bounding_box_to_poses(*pose_array, detection.bbox, detection.class_name,
-                                                           detection.class_id, detection.confidence);
-          }
+          // Add bounding box to the pose array with class label and confidence
+          rzv_model::Utils::encode_bounding_box_to_poses(*pose_array, detection.bbox, detection.class_name,
+                                                         detection.class_id, detection.confidence);
         }
+      }
 
-        // Publish only if we have valid detections
-        if (has_valid_detections)
-        {
-          bbox_publisher_->publish(std::move(pose_array));
-        }
+      // Publish only if we have valid detections
+      if (has_valid_detections)
+      {
+        bbox_publisher_->publish(std::move(pose_array));
       }
     }
   }
