@@ -18,8 +18,8 @@ def generate_launch_description():
         }],
         remappings=[
             # publish camera info and image raw topics
-            ('/camera_info', '/image_publisher/camera_info'),
-             ('/image_raw', '/image_publisher/image_raw'),
+            ('/camera_info', '/camera_info'),
+             ('/image_raw', '/image_raw'),
        ]
     )
 
@@ -36,7 +36,7 @@ def generate_launch_description():
         }],
         remappings=[
             # subscribe to image raw topic
-            ('/image_raw', '/image_publisher/image_raw'),
+            ('/image_raw', '/image_raw'),
             # publish bounding box topic
             ('/bounding_box', '/object_detection/bounding_box'),
         ],
@@ -58,7 +58,7 @@ def generate_launch_description():
             # subscribe to bounding box topic
             ('/keypoint_poses', '/object_detection/bounding_box'),
             # publish visualization topic
-            ('/keypoint_visualization', '/keypoint_visualization')
+            ('/keypoint_visualization', '/bbox_visualization')
         ],
         output='screen'
     )

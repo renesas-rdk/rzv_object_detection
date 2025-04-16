@@ -53,7 +53,7 @@ def generate_launch_description():
             # subscribe to bounding box topic
             ('/keypoint_poses', '/object_detection/bounding_box'),
             # publish visualization topic
-            ('/keypoint_visualization', '/keypoint_visualization')
+            ('/keypoint_visualization', '/bbox_visualization')
         ],
         output='screen'
     )
