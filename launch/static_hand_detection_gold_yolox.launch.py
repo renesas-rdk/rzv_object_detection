@@ -43,7 +43,7 @@ def generate_launch_description():
     # Create object detection node
     object_detection_node = Node(
         package='rzv_object_detection',
-        executable='object_detection',
+        executable='yolox_object_detection',
         name='object_detection',
         parameters=[{
             'model_type': 'gold_yolox_hand',
