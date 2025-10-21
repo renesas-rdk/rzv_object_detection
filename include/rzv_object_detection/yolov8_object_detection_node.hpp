@@ -20,19 +20,20 @@
 #include <memory>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
+#include <std_msgs/msg/string.hpp>
 #include <string>
 #include <vector>
 
-#include "rzv_model/yolox_hand_model.hpp"
+#include "rzv_model/yolov8_rps_model.hpp"
 
 namespace rzv_object_detection
 {
 
-class ObjectDetection : public rclcpp::Node
+class Yolov8ObjectDetection : public rclcpp::Node
 {
 public:
-  explicit ObjectDetection();
-  ~ObjectDetection();
+  explicit Yolov8ObjectDetection();
+  ~Yolov8ObjectDetection();
 
 private:
   void process_image(const sensor_msgs::msg::Image::SharedPtr msg);
@@ -42,9 +43,10 @@ private:
 
   // Publishers
   rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr bbox_publisher_;
+  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr object_detection_publisher_;
 
   // Model(s)
-  std::unique_ptr<rzv_model::YoloxModel> obj_detect_model_;
+  std::unique_ptr<rzv_model::Yolov8Model> obj_detect_model_;
 
   // Callback group
   rclcpp::CallbackGroup::SharedPtr callback_group_;

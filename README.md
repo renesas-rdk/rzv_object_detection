@@ -7,6 +7,7 @@ A ROS2 package for performing object detection on Renesas RZ/V2H platform. Imple
 This package provides ROS2 nodes for:
 - General object detection using YOLOX Pascal VOC model
 - Hand detection using YOLOX and Gold YOLOX models
+- Rock-Paper-Scissors hand detection using YOLOv8 models
 - Real-time camera-based detection
 - Static image-based detection
 
@@ -16,6 +17,7 @@ This package provides ROS2 nodes for:
   - YOLOX Pascal VOC (20 classes)
   - YOLOX Hand Detection
   - Gold YOLOX Hand Detection
+  - YOLOv8 RPS Hand Detection
 - Configurable detection parameters
 - Integration with Foxglove Studio for visualization
 - Multi-threaded processing support
@@ -31,7 +33,7 @@ This node performs object detection on incoming image streams and publishes boun
 | Parameter Name | Data Type | Default | Description |
 |----------------|-----------|---------|-------------|
 | `model_path` | string | "" | Path to the model file |
-| `model_type` | string | "yolox_pascal_voc" | Type of model to use (yolox_pascal_voc, yolox_hand, gold_yolox_hand) |
+| `model_type` | string | "yolox_pascal_voc" | Type of model to use (yolox_pascal_voc, yolox_hand, gold_yolox_hand, yolov8_rps) |
 | `processing_queue_size` | int | 5 | Size of the image processing queue |
 | `confidence_threshold` | float | 0.5 | Threshold for detection confidence |
 | `iou_threshold` | float | 0.45 | Threshold for IoU in NMS |
@@ -49,51 +51,70 @@ This node performs object detection on incoming image streams and publishes boun
 | Topic | Type | Description |
 |-------|------|-------------|
 | `bounding_box` | `geometry_msgs/msg/PoseArray` | Detection results as pose arrays |
+| `rps_hand_detect` | `std_msgs/msg/String` | Detected hand gesture name (R/P/S)  |
 
 ## Launch Files
 
 ### Camera-based Detection
 ```bash
 # Hand detection using camera input
-ros2 launch rzv_object_detection camera_hand_detection.launch.py
+ros2 launch rzv_object_detection camera_hand_detection_yolox.launch.py
+
+# RPS hand detection using camera input
+ros2 launch rzv_object_detection camera_rps_hand_detection_yolov8.launch.py
 ```
 
 ### Static Image Detection
 ```bash
 # Pascal VOC object detection on static image
-ros2 launch rzv_object_detection static_object_detection.launch.py
+ros2 launch rzv_object_detection static_object_detection_yolox.launch.py
 
 # Hand detection on static image using YOLOX
 ros2 launch rzv_object_detection static_hand_detection_yolox.launch.py
 
 # Hand detection on static image using Gold YOLOX
 ros2 launch rzv_object_detection static_hand_detection_gold_yolox.launch.py
+
+# RPS hand detection on static image using YOLOv8
+ros2 launch rzv_object_detection static_rps_hand_detection_yolov8.launch.py
 ```
 
 ## Launch File Parameters
 
-### camera_hand_detection.launch.py
+### camera_hand_detection_yolox.launch.py
 
 | Node | Parameter | Default | Description |
 |------|-----------|---------|-------------|
 | v4l2_camera | video_device | /dev/video0 | Camera device path |
 | v4l2_camera | output_encoding | yuv422_yuy2 | Image encoding format |
 | v4l2_camera | image_size | [640, 480] | Camera resolution |
-| object_detection | model_type | yolox_hand | Detection model type |
-| object_detection | processing_queue_size | 1 | Queue size for processing |
-| object_detection | confidence_threshold | 0.8 | Confidence threshold |
-| object_detection | iou_threshold | 0.3 | IoU threshold for NMS |
+| yolox_object_detection | model_type | yolox_hand | Detection model type |
+| yolox_object_detection | processing_queue_size | 1 | Queue size for processing |
+| yolox_object_detection | confidence_threshold | 0.8 | Confidence threshold |
+| yolox_object_detection | iou_threshold | 0.3 | IoU threshold for NMS |
 
-### static_object_detection.launch.py
+### camera_rps_hand_detection_yolov8.launch.py
+
+| Node | Parameter | Default | Description |
+|------|-----------|---------|-------------|
+| v4l2_camera | video_device | /dev/video0 | Camera device path |
+| v4l2_camera | output_encoding | yuv422_yuy2 | Image encoding format |
+| v4l2_camera | image_size | [640, 480] | Camera resolution |
+| yolov8_object_detection | model_type | yolov8_rps | Detection model type |
+| yolov8_object_detection | processing_queue_size | 1 | Queue size for processing |
+| yolov8_object_detection | confidence_threshold | 0.8 | Confidence threshold |
+| yolov8_object_detection | iou_threshold | 0.3 | IoU threshold for NMS |
+
+### static_object_detection_yolox.launch.py
 
 | Node | Parameter | Default | Description |
 |------|-----------|---------|-------------|
 | image_publisher | filename | config/test/street.jpg | Test image path |
 | image_publisher | publish_rate | 1.0 | Image publishing rate in Hz |
-| object_detection | model_type | yolox_pascal_voc | Detection model type |
-| object_detection | processing_queue_size | 1 | Queue size for processing |
-| object_detection | confidence_threshold | 0.5 | Confidence threshold |
-| object_detection | iou_threshold | 0.3 | IoU threshold for NMS |
+| yolox_object_detection | model_type | yolox_pascal_voc | Detection model type |
+| yolox_object_detection | processing_queue_size | 1 | Queue size for processing |
+| yolox_object_detection | confidence_threshold | 0.5 | Confidence threshold |
+| yolox_object_detection | iou_threshold | 0.3 | IoU threshold for NMS |
 
 ### static_hand_detection_yolox.launch.py
 
@@ -101,10 +122,10 @@ ros2 launch rzv_object_detection static_hand_detection_gold_yolox.launch.py
 |------|-----------|---------|-------------|
 | image_publisher | filename | config/test/hand_5.png | Test image path |
 | image_publisher | publish_rate | 1.0 | Image publishing rate in Hz |
-| object_detection | model_type | yolox_hand | Detection model type |
-| object_detection | processing_queue_size | 1 | Queue size for processing |
-| object_detection | confidence_threshold | 0.8 | Confidence threshold |
-| object_detection | iou_threshold | 0.3 | IoU threshold for NMS |
+| yolox_object_detection | model_type | yolox_hand | Detection model type |
+| yolox_object_detection | processing_queue_size | 1 | Queue size for processing |
+| yolox_object_detection | confidence_threshold | 0.8 | Confidence threshold |
+| yolox_object_detection | iou_threshold | 0.3 | IoU threshold for NMS |
 
 ### static_hand_detection_gold_yolox.launch.py
 
@@ -112,10 +133,21 @@ ros2 launch rzv_object_detection static_hand_detection_gold_yolox.launch.py
 |------|-----------|---------|-------------|
 | image_publisher | filename | config/test/hand_5.png | Test image path |
 | image_publisher | publish_rate | 1.0 | Image publishing rate in Hz |
-| object_detection | model_type | gold_yolox_hand | Detection model type |
-| object_detection | processing_queue_size | 1 | Queue size for processing |
-| object_detection | confidence_threshold | 0.4 | Confidence threshold |
-| object_detection | iou_threshold | 0.45 | IoU threshold for NMS |
+| yolox_object_detection | model_type | gold_yolox_hand | Detection model type |
+| yolox_object_detection | processing_queue_size | 1 | Queue size for processing |
+| yolox_object_detection | confidence_threshold | 0.4 | Confidence threshold |
+| yolox_object_detection | iou_threshold | 0.45 | IoU threshold for NMS |
+
+### static_rps_hand_detection_yolov8.launch.py
+
+| Node | Parameter | Default | Description |
+|------|-----------|---------|-------------|
+| image_publisher | filename | config/test/hand_5.png | Test image path |
+| image_publisher | publish_rate | 1.0 | Image publishing rate in Hz |
+| yolov8_object_detection | model_type | yolov8_rps | Detection model type |
+| yolov8_object_detection | processing_queue_size | 1 | Queue size for processing |
+| yolov8_object_detection | confidence_threshold | 0.8 | Confidence threshold |
+| yolov8_object_detection | iou_threshold | 0.3 | IoU threshold for NMS |
 
 ## Usage Examples
 
@@ -123,30 +155,30 @@ ros2 launch rzv_object_detection static_hand_detection_gold_yolox.launch.py
 
 ```bash
 # Run with custom model type and thresholds
-ros2 run rzv_object_detection object_detection --ros-args -p model_type:=gold_yolox_hand -p confidence_threshold:=0.6 -p iou_threshold:=0.4
+ros2 run rzv_object_detection yolox_object_detection --ros-args -p model_type:=gold_yolox_hand -p confidence_threshold:=0.6 -p iou_threshold:=0.4
 
 # Run with specific model path
-ros2 run rzv_object_detection object_detection --ros-args -p model_path:=/path/to/custom/drpai/model
+ros2 run rzv_object_detection yolox_object_detection --ros-args -p model_path:=/path/to/custom/drpai/model
 ```
 
 ### Topic Remapping
 
 ```bash
 # Remap input image topic
-ros2 run rzv_object_detection object_detection --ros-args --remap /image_raw:=/camera/image_raw
+ros2 run rzv_object_detection yolox_object_detection --ros-args --remap /image_raw:=/camera/image_raw
 
 # Remap output bounding box topic
-ros2 run rzv_object_detection object_detection --ros-args --remap bounding_box:=/detections
+ros2 run rzv_object_detection yolox_object_detection --ros-args --remap bounding_box:=/detections
 ```
 
 ### Launch File Customization
 
 ```bash
 # Launch with custom camera device
-ros2 launch rzv_object_detection camera_hand_detection.launch.py video_device:=/dev/video1
+ros2 launch rzv_object_detection camera_hand_detection_yolox.launch.py video_device:=/dev/video1
 
 # Launch with custom image
-ros2 launch rzv_object_detection static_object_detection.launch.py filename:=/path/to/custom/image.jpg
+ros2 launch rzv_object_detection static_object_detection_yolox.launch.py filename:=/path/to/custom/image.jpg
 
 # Launch with modified thresholds
 ros2 launch rzv_object_detection static_hand_detection_yolox.launch.py confidence_threshold:=0.7 iou_threshold:=0.5
@@ -160,7 +192,7 @@ The package is designed to work with the foxglove_keypoint_publisher for visuali
 
 ```bash
 # First run object detection
-ros2 launch rzv_object_detection static_object_detection.launch.py
+ros2 launch rzv_object_detection static_object_detection_yolox.launch.py
 
 # Then run the visualization node
 ros2 run foxglove_keypoint_publisher foxglove_keypoint_publisher_node --ros-args -p config_file:=$(ros2 pkg prefix foxglove_keypoint_publisher)/share/foxglove_keypoint_publisher/config/poses/bounding_box.yaml --remap /keypoint_poses:=/object_detection/bounding_box

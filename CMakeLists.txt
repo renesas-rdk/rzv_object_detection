@@ -12,31 +12,50 @@ find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(rzv_model REQUIRED)
 
-# create target
-set(TARGET_OBJ_DET object_detection)
-add_executable(${TARGET_OBJ_DET}
-  src/object_detection_node.cpp
-)
-
-# include directories
-target_include_directories(${TARGET_OBJ_DET} PUBLIC
+# Shared include directories
+set(SHARED_INCLUDE_DIRS
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
-)
-target_include_directories(${TARGET_OBJ_DET} PUBLIC
   $<BUILD_INTERFACE:/usr/include/renesas/opencv4>
 )
 
+# create target
+set(TARGET_OBJ_DET_YOLOX yolox_object_detection)
+add_executable(${TARGET_OBJ_DET_YOLOX}
+  src/yolox_object_detection_node.cpp
+)
+
+# include directories
+target_include_directories(${TARGET_OBJ_DET_YOLOX} PUBLIC ${SHARED_INCLUDE_DIRS})
+
 # ROS2 dependencies
-ament_target_dependencies(${TARGET_OBJ_DET}
+ament_target_dependencies(${TARGET_OBJ_DET_YOLOX}
   rclcpp
   sensor_msgs
   geometry_msgs
   rzv_model
 )
 
+# create target
+set(TARGET_OBJ_DET_YOLOv8 yolov8_object_detection)
+add_executable(${TARGET_OBJ_DET_YOLOv8}
+  src/yolov8_object_detection_node.cpp
+)
+
+# include directories
+target_include_directories(${TARGET_OBJ_DET_YOLOv8} PUBLIC ${SHARED_INCLUDE_DIRS})
+
+ament_target_dependencies(${TARGET_OBJ_DET_YOLOv8}
+  rclcpp
+  sensor_msgs
+  std_msgs
+  rzv_model
+  geometry_msgs
+)
+
 install(
-  TARGETS ${TARGET_OBJ_DET} EXPORT ${TARGET_OBJ_DET}
+  TARGETS ${TARGET_OBJ_DET_YOLOX} ${TARGET_OBJ_DET_YOLOv8}
+  EXPORT rzv_object_detection_targets
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib
   RUNTIME DESTINATION lib/${PROJECT_NAME}
@@ -60,8 +79,8 @@ install(DIRECTORY
 )
 
 ament_export_include_directories(include)
-ament_export_libraries(${TARGET_OBJ_DET})
-ament_export_targets(${TARGET_OBJ_DET})
+ament_export_libraries(rzv_object_detection_targets)
+ament_export_targets(rzv_object_detection_targets)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)

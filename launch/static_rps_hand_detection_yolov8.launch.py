@@ -23,8 +23,8 @@ from launch_ros.actions import Node
 def generate_launch_description():
 
     # Create image publisher node
-    pkg_dir = get_package_share_directory('rzv_object_detection')
-    test_image_path = os.path.join(pkg_dir, 'config/test/hand_5.png')
+    pkg_dir = get_package_share_directory('rzv_pose_estimation')
+    test_image_path = os.path.join(pkg_dir, 'config/test/rps_game.jpg')
     image_publisher_node = Node(
         package='image_publisher',
         executable='image_publisher_node',
@@ -36,17 +36,17 @@ def generate_launch_description():
         remappings=[
             # publish camera info and image raw topics
             ('/camera_info', '/camera_info'),
-             ('/image_raw', '/image_raw'),
+            ('/image_raw', '/image_raw'),
        ]
     )
 
-    # Create object detection node
+    # Create hand landmark node
     object_detection_node = Node(
         package='rzv_object_detection',
-        executable='yolox_object_detection',
+        executable='yolov8_object_detection',
         name='object_detection',
         parameters=[{
-            'model_type': 'yolox_hand',
+            'model_type': 'yolov8_rps',
             'processing_queue_size': 1,
             'confidence_threshold': 0.8,
             'iou_threshold': 0.3,
@@ -54,8 +54,8 @@ def generate_launch_description():
         remappings=[
             # subscribe to image raw topic
             ('/image_raw', '/image_raw'),
-            # publish bounding box topic
-            ('/bounding_box', '/object_detection/bounding_box'),
+            # publish hand landmark topic
+            ('/bounding_box', '/object_detection_node/bounding_box'),
         ],
         output='screen',
         arguments=['--ros-args', '--log-level', 'INFO']
@@ -73,7 +73,7 @@ def generate_launch_description():
         }],
         remappings=[
             # subscribe to bounding box topic
-            ('/keypoint_poses', '/object_detection/bounding_box'),
+            ('/keypoint_poses', '/object_detection_node/bounding_box'),
             # publish visualization topic
             ('/keypoint_visualization', '/bbox_visualization')
         ],

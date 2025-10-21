@@ -1,0 +1,237 @@
+// ********************************************************************************************************************
+// Copyright [2025] Renesas Electronics Corporation and/or its licensors. All Rights Reserved.
+//
+// The contents of this file (the "contents") are proprietary and confidential to Renesas Electronics Corporation
+// and/or its licensors ("Renesas") and subject to statutory and contractual protections.
+//
+// Unless otherwise expressly agreed in writing between Renesas and you: 1) you may not use, copy, modify, distribute,
+// display, or perform the contents; 2) you may not use any name or mark of Renesas for advertising or publicity
+// purposes or in connection with your use of the contents; 3) RENESAS MAKES NO WARRANTY OR REPRESENTATIONS ABOUT THE
+// SUITABILITY OF THE CONTENTS FOR ANY PURPOSE; THE CONTENTS ARE PROVIDED "AS IS" WITHOUT ANY EXPRESS OR IMPLIED
+// WARRANTY, INCLUDING THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND
+// NON-INFRINGEMENT; AND 4) RENESAS SHALL NOT BE LIABLE FOR ANY DIRECT, INDIRECT, SPECIAL, OR CONSEQUENTIAL DAMAGES,
+// INCLUDING DAMAGES RESULTING FROM LOSS OF USE, DATA, OR PROJECTS, WHETHER IN AN ACTION OF CONTRACT OR TORT, ARISING
+// OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THE CONTENTS. Third-party contents included in this file may
+// be subject to different terms.
+// ********************************************************************************************************************
+#include "rzv_object_detection/yolov8_object_detection_node.hpp"
+
+#include <unistd.h>
+
+#include <atomic>
+#include <condition_variable>
+#include <mutex>
+#include <queue>
+#include <rclcpp/executors/multi_threaded_executor.hpp>
+#include <thread>
+#include <vector>
+
+#include "rzv_model/utils.hpp"
+#include "rzv_model/yolov8_rps_model.hpp"
+
+namespace rzv_object_detection
+{
+
+Yolov8ObjectDetection::Yolov8ObjectDetection() : Node("Yolov8ObjectDetection")
+{
+  RCLCPP_INFO(this->get_logger(), "Node object detection started!");
+
+  // Declare parameters with default values
+  this->declare_parameter("model_path", "");
+  this->declare_parameter("model_type", "yolov8_rps");
+  this->declare_parameter("processing_queue_size", 5);
+  this->declare_parameter("confidence_threshold", 0.5f);
+  this->declare_parameter("iou_threshold", 0.45f);
+  this->declare_parameter("class_names", std::vector<std::string>{});
+  this->declare_parameter("processing_threads", 1);  // Default to 1 for sequential processing
+
+  // Get parameters
+  model_path_ = this->get_parameter("model_path").as_string();
+  model_type_ = this->get_parameter("model_type").as_string();
+  int queue_size = this->get_parameter("processing_queue_size").as_int();
+  confidence_threshold_ = this->get_parameter("confidence_threshold").as_double();
+  iou_threshold_ = this->get_parameter("iou_threshold").as_double();
+  class_names_ = this->get_parameter("class_names").as_string_array();
+
+  // Create a mutually exclusive callback group - ensures one callback runs at a time
+  callback_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+
+  auto qos_reliable_stream = rclcpp::QoS(queue_size);
+  qos_reliable_stream.keep_last(queue_size);  // Only keep latest frames
+  qos_reliable_stream.reliable();             // Or use best_effort() for more aggressive dropping
+  qos_reliable_stream.durability_volatile();  // Don't persist old messages
+
+  auto qos_sensor_data = rclcpp::QoS(rclcpp::KeepLast(1));
+  qos_sensor_data.best_effort();          // Only keep latest message
+  qos_sensor_data.durability_volatile();  // Or use best_effort() for more aggressive dropping
+
+  // Set subscription options with callback group
+  rclcpp::SubscriptionOptions options;
+  options.callback_group = callback_group_;
+
+  // Create subscription to image topic
+  image_subscription_ = this->create_subscription<sensor_msgs::msg::Image>(
+    "/image_raw", qos_reliable_stream,
+    std::bind(&Yolov8ObjectDetection::process_image, this, std::placeholders::_1), options);
+
+  // Create publisher for hand landmarks
+  bbox_publisher_ =
+    this->create_publisher<geometry_msgs::msg::PoseArray>("bounding_box", qos_reliable_stream);
+  object_detection_publisher_ =
+    this->create_publisher<std_msgs::msg::String>("rps_hand_detect", qos_sensor_data);
+
+  // Log configuration
+  RCLCPP_INFO(this->get_logger(), "ObjectDetection initialized");
+  RCLCPP_INFO(this->get_logger(), "Model path: %s", model_path_.c_str());
+  RCLCPP_INFO(this->get_logger(), "Model type: %s", model_type_.c_str());
+  RCLCPP_INFO(this->get_logger(), "Image processing queue size: %d", queue_size);
+  RCLCPP_INFO(this->get_logger(), "Confidence threshold: %.2f", confidence_threshold_);
+  RCLCPP_INFO(this->get_logger(), "IoU threshold: %.2f", iou_threshold_);
+  RCLCPP_INFO(this->get_logger(), "Number of classes: %zu", class_names_.size());
+  RCLCPP_INFO(
+    this->get_logger(), "Subscribing to image topic: %s", image_subscription_->get_topic_name());
+  RCLCPP_INFO(
+    this->get_logger(), "Publishing bounding boxes to: %s", bbox_publisher_->get_topic_name());
+
+  // Create the model based on type and load it
+  if (model_type_ == "yolov8_rps") {
+    obj_detect_model_ = std::make_unique<rzv_model::Yolov8RPSModel>();
+    RCLCPP_INFO(this->get_logger(), "Using YOLOV8 RPS Hand model");
+  } else {
+    RCLCPP_WARN(
+      this->get_logger(), "Unrecognized model type: %s, using YOLOv8 model by default",
+      model_type_.c_str());
+    obj_detect_model_ = std::make_unique<rzv_model::Yolov8RPSModel>();
+  }
+
+  // Set model parameters
+  if (!class_names_.empty()) {
+    obj_detect_model_->set_class_names(class_names_);
+  }
+  obj_detect_model_->set_confidence_threshold(confidence_threshold_);
+  obj_detect_model_->set_nms_threshold(iou_threshold_);
+
+  // Load the model
+  if (!obj_detect_model_->load(model_path_)) {
+    RCLCPP_ERROR(this->get_logger(), "Failed to load YOLOv8 model from %s", model_path_.c_str());
+  } else {
+    RCLCPP_INFO(this->get_logger(), "YOLOv8 Model %s loaded successfully", model_type_.c_str());
+  }
+}
+
+Yolov8ObjectDetection::~Yolov8ObjectDetection()
+{
+  RCLCPP_INFO(this->get_logger(), "Cleaning up resources...");
+  image_subscription_.reset();
+  bbox_publisher_.reset();
+  obj_detect_model_.reset();
+  object_detection_publisher_.reset();
+}
+
+void Yolov8ObjectDetection::process_image(const sensor_msgs::msg::Image::SharedPtr msg)
+{
+  // Quick check - don't process if model not loaded
+  if (!obj_detect_model_ || !obj_detect_model_->is_loaded()) {
+    RCLCPP_WARN_THROTTLE(
+      this->get_logger(), *this->get_clock(), 5000, "Model not loaded, skipping processing");
+    return;
+  }
+
+  // Log that we received an image (throttled)
+  RCLCPP_INFO_THROTTLE(
+    this->get_logger(), *this->get_clock(), 1000, "Received image: %dx%d, encoding: %s", msg->width,
+    msg->height, msg->encoding.c_str());
+
+  RCLCPP_DEBUG(this->get_logger(), "Processing image in executor thread");
+
+  // Convert the image to YUV422 (YUY2) format which is what our model expects
+  cv::Mat image;
+
+  try {
+    if (msg->encoding == "bgr8") {
+      // Convert BGR to YUV422 (yuv422_yuy2)
+      cv::Mat bgr_image(
+        msg->height, msg->width, CV_8UC3, const_cast<unsigned char *>(msg->data.data()));
+      image = rzv_model::Utils::bgr_to_yuv422(bgr_image, rzv_model::YUV422Format::YUYV);
+    } else if (msg->encoding == "rgba8") {
+      // Convert RGBA to YUV422 (yuv422_yuy2)
+      cv::Mat rgba_image(
+        msg->height, msg->width, CV_8UC4, const_cast<unsigned char *>(msg->data.data()));
+      image = rzv_model::Utils::rgba_to_yuv422(rgba_image, rzv_model::YUV422Format::YUYV);
+    } else if (msg->encoding == "yuv422" || msg->encoding == "yuv422_yuy2") {
+      // Already in YUV422_YUY2 format, just create a view (zero-copy)
+      image =
+        cv::Mat(msg->height, msg->width, CV_8UC2, const_cast<unsigned char *>(msg->data.data()));
+    } else {
+      RCLCPP_ERROR(this->get_logger(), "Unsupported image encoding: %s", msg->encoding.c_str());
+      return;
+    }
+
+    // Run object detection model
+
+    auto object_detection_name = std::make_unique<std_msgs::msg::String>();
+    auto input = rzv_model::ModelInput{image, cv::Rect(0, 0, image.cols, image.rows)};
+    auto result = obj_detect_model_->run<rzv_model::YOLOv8DetectionResult>(input);
+    cv::Rect first_hand_bbox;
+
+    if (result) {
+      // Create pose array for all valid detections
+      auto pose_array = std::make_unique<geometry_msgs::msg::PoseArray>();
+      pose_array->header.stamp = this->now();
+      pose_array->header.frame_id = "camera_frame";
+
+      bool has_valid_detections = false;
+
+      for (const auto & detection : result->detections) {
+        if (detection.is_valid) {
+          has_valid_detections = true;
+          object_detection_name->data = detection.class_name.c_str();
+          RCLCPP_INFO_THROTTLE(
+            this->get_logger(), *this->get_clock(), 1000,
+            "Detected %s at: %2f, %2f, %2f, %2f with score %0.2f", detection.class_name.c_str(),
+            detection.bbox.x, detection.bbox.y, detection.bbox.width, detection.bbox.height,
+            detection.confidence);
+
+          // Add bounding box to the pose array with class label and confidence
+          rzv_model::Utils::encode_bounding_box_to_poses(
+            *pose_array, detection.bbox, detection.class_name, detection.class_id,
+            detection.confidence);
+        }
+      }
+
+      // Publish only if we have valid detections
+      if (has_valid_detections) {
+        bbox_publisher_->publish(std::move(pose_array));
+        object_detection_publisher_->publish(std::move(object_detection_name));
+      }
+    }
+
+  } catch (const std::exception & e) {
+    RCLCPP_ERROR(this->get_logger(), "Error processing image: %s", e.what());
+  }
+
+  RCLCPP_DEBUG(this->get_logger(), "Finished processing image");
+}
+
+}  // namespace rzv_object_detection
+
+int main(int argc, char * argv[])
+{
+  rclcpp::init(argc, argv);
+
+  // Create node first to access parameters
+  auto node = std::make_shared<rzv_object_detection::Yolov8ObjectDetection>();
+
+  // Get processing threads from parameter
+  int thread_count = node->get_parameter("processing_threads").as_int();
+
+  // Create multi-threaded executor with configured threads
+  // Using 1 thread ensures sequential processing similar to original code
+  rclcpp::executors::MultiThreadedExecutor executor(rclcpp::ExecutorOptions(), thread_count);
+
+  executor.add_node(node);
+  executor.spin();
+
+  rclcpp::shutdown();
+  return 0;
+}

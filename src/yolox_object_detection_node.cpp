@@ -14,7 +14,7 @@
 // OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THE CONTENTS. Third-party contents included in this file may
 // be subject to different terms.
 // ********************************************************************************************************************
-#include "rzv_object_detection/object_detection_node.hpp"
+#include "rzv_object_detection/yolox_object_detection_node.hpp"
 
 #include <unistd.h>
 
@@ -33,7 +33,7 @@
 namespace rzv_object_detection
 {
 
-ObjectDetection::ObjectDetection() : Node("object_detection")
+YoloXObjectDetection::YoloXObjectDetection() : Node("YoloXObjectDetection")
 {
   RCLCPP_INFO(this->get_logger(), "Node object detection started!");
 
@@ -69,7 +69,7 @@ ObjectDetection::ObjectDetection() : Node("object_detection")
 
   // Create subscription to image topic
   image_subscription_ = this->create_subscription<sensor_msgs::msg::Image>(
-    "/image_raw", qos, std::bind(&ObjectDetection::process_image, this, std::placeholders::_1),
+    "/image_raw", qos, std::bind(&YoloXObjectDetection::process_image, this, std::placeholders::_1),
     options);
 
   // Create publisher for bounding boxes
@@ -120,7 +120,7 @@ ObjectDetection::ObjectDetection() : Node("object_detection")
   }
 }
 
-ObjectDetection::~ObjectDetection()
+YoloXObjectDetection::~YoloXObjectDetection()
 {
   RCLCPP_INFO(this->get_logger(), "Cleaning up resources...");
   image_subscription_.reset();
@@ -128,7 +128,7 @@ ObjectDetection::~ObjectDetection()
   obj_detect_model_.reset();
 }
 
-void ObjectDetection::process_image(const sensor_msgs::msg::Image::SharedPtr msg)
+void YoloXObjectDetection::process_image(const sensor_msgs::msg::Image::SharedPtr msg)
 {
   // Quick check - don't process if model not loaded
   if (!obj_detect_model_ || !obj_detect_model_->is_loaded()) {
@@ -213,7 +213,7 @@ int main(int argc, char * argv[])
   rclcpp::init(argc, argv);
 
   // Create node first to access parameters
-  auto node = std::make_shared<rzv_object_detection::ObjectDetection>();
+  auto node = std::make_shared<rzv_object_detection::YoloXObjectDetection>();
 
   // Get processing threads from parameter
   int thread_count = node->get_parameter("processing_threads").as_int();
