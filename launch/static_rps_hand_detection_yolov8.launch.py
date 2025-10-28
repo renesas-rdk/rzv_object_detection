@@ -25,7 +25,7 @@ from launch.launch_description_sources import FrontendLaunchDescriptionSource
 def generate_launch_description():
 
     # Create image publisher node
-    pkg_dir = get_package_share_directory('rzv_pose_estimation')
+    pkg_dir = get_package_share_directory('rzv_object_detection')
     test_image_path = os.path.join(pkg_dir, 'config/test/rps_game.jpg')
     image_publisher_node = Node(
         package='image_publisher',
