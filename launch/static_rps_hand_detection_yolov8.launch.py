@@ -19,11 +19,13 @@ import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch_ros.actions import Node
+from launch.actions import IncludeLaunchDescription
+from launch.launch_description_sources import FrontendLaunchDescriptionSource
 
 def generate_launch_description():
 
     # Create image publisher node
-    pkg_dir = get_package_share_directory('rzv_pose_estimation')
+    pkg_dir = get_package_share_directory('rzv_object_detection')
     test_image_path = os.path.join(pkg_dir, 'config/test/rps_game.jpg')
     image_publisher_node = Node(
         package='image_publisher',
@@ -80,9 +82,17 @@ def generate_launch_description():
         output='screen'
     )
 
+    # Foxglove bridge for visualization in Foxglove Studio
+    foxglove_bridge_launch = IncludeLaunchDescription(
+        FrontendLaunchDescriptionSource(
+            os.path.join(get_package_share_directory('foxglove_bridge'), 'launch', 'foxglove_bridge_launch.xml')
+        )
+    )
+
     # Create and return launch description
     return LaunchDescription([
         image_publisher_node,
         object_detection_node,
-        foxglove_hand_bbox_publisher_node
+        foxglove_hand_bbox_publisher_node,
+        foxglove_bridge_launch
     ])
