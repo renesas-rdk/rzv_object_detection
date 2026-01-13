@@ -16,6 +16,7 @@
 // ********************************************************************************************************************
 #pragma once
 
+#include <diagnostic_msgs/msg/diagnostic_status.hpp>
 #include <geometry_msgs/msg/pose_array.hpp>
 #include <memory>
 #include <rclcpp/rclcpp.hpp>
@@ -23,7 +24,7 @@
 #include <string>
 #include <vector>
 
-#include "rzv_model/yolox_hand_model.hpp"
+#include "rzv_yolox/yolox_model.hpp"
 
 namespace rzv_object_detection
 {
@@ -42,6 +43,7 @@ private:
 
   // Publishers
   rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr bbox_publisher_;
+  rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticStatus>::SharedPtr diagnostic_timing_publisher_;
 
   // Model(s)
   std::unique_ptr<rzv_model::YoloxModel> obj_detect_model_;

@@ -18,16 +18,12 @@
 
 #include <unistd.h>
 
-#include <atomic>
-#include <condition_variable>
-#include <mutex>
-#include <queue>
 #include <rclcpp/executors/multi_threaded_executor.hpp>
 #include <thread>
 #include <vector>
 
-#include "rzv_model/utils.hpp"
-#include "rzv_model/yolov8_rps_model.hpp"
+#include "rzv_model_utils_ros2/model_utils.hpp"
+#include "rzv_yolov8/yolov8_utils.hpp"
 
 namespace rzv_object_detection
 {
@@ -38,24 +34,50 @@ Yolov8ObjectDetection::Yolov8ObjectDetection() : Node("Yolov8ObjectDetection")
 
   // Declare parameters with default values
   this->declare_parameter("model_path", "");
-  this->declare_parameter("model_type", "yolov8_rps");
-  this->declare_parameter("processing_queue_size", 5);
+  this->declare_parameter("model_type", "yolox_pascal_voc");
+  this->declare_parameter("class_names", std::vector<std::string>{});
   this->declare_parameter("confidence_threshold", 0.5f);
   this->declare_parameter("iou_threshold", 0.45f);
-  this->declare_parameter("class_names", std::vector<std::string>{});
+  this->declare_parameter("processing_queue_size", 5);
+  this->declare_parameter("cpu_dfl_multi_thread", true);
+  this->declare_parameter(
+    "dfl_sigmoid_mode", static_cast<int>(rzv_model::DFLSigmoidMode::AfterThreshold));
   this->declare_parameter("processing_threads", 1);  // Default to 1 for sequential processing
 
+  RCLCPP_INFO(this->get_logger(), " Get parameters");
   // Get parameters
-  model_path_ = this->get_parameter("model_path").as_string();
+  std::string model_path_param = this->get_parameter("model_path").as_string();
   model_type_ = this->get_parameter("model_type").as_string();
-  int queue_size = this->get_parameter("processing_queue_size").as_int();
+  auto class_names_param = this->get_parameter("class_names").as_string_array();
   confidence_threshold_ = this->get_parameter("confidence_threshold").as_double();
   iou_threshold_ = this->get_parameter("iou_threshold").as_double();
-  class_names_ = this->get_parameter("class_names").as_string_array();
+  int queue_size = this->get_parameter("processing_queue_size").as_int();
+  cpu_dfl_multi_thread_ = this->get_parameter("cpu_dfl_multi_thread").as_bool();
+
+  // Load model config from YAML config
+  // Fallback logic: User → YAML → default value
+  auto object_model = rzv_model::Utils::load_model_info(
+    "rzv_object_detection", model_type_, model_path_param, class_names_param);  // Object model
+  model_path_ = object_model.model_path;
+  class_names_ = object_model.class_names;
+
+  // The DFL sigmoid mode parameter should be an integer corresponding to the enum values
+  int dfl_sigmoid_mode_int = this->get_parameter("dfl_sigmoid_mode").as_int();
+  if (
+    dfl_sigmoid_mode_int < static_cast<int>(rzv_model::DFLSigmoidMode::InDfl) ||
+    dfl_sigmoid_mode_int > static_cast<int>(rzv_model::DFLSigmoidMode::AfterThreshold)) {
+    RCLCPP_WARN(
+      this->get_logger(), "Invalid dfl_sigmoid_mode value %d, defaulting to AfterThreshold",
+      dfl_sigmoid_mode_int);
+    dfl_sigmoid_mode_ = rzv_model::DFLSigmoidMode::AfterThreshold;
+  } else {
+    dfl_sigmoid_mode_ = static_cast<rzv_model::DFLSigmoidMode>(dfl_sigmoid_mode_int);
+  }
 
   // Create a mutually exclusive callback group - ensures one callback runs at a time
   callback_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
 
+  // Configure QoS with queue depth and frame dropping policy
   auto qos_reliable_stream = rclcpp::QoS(queue_size);
   qos_reliable_stream.keep_last(queue_size);  // Only keep latest frames
   qos_reliable_stream.reliable();             // Or use best_effort() for more aggressive dropping
@@ -69,16 +91,18 @@ Yolov8ObjectDetection::Yolov8ObjectDetection() : Node("Yolov8ObjectDetection")
   rclcpp::SubscriptionOptions options;
   options.callback_group = callback_group_;
 
-  // Create subscription to image topic
+  // Create subscription
   image_subscription_ = this->create_subscription<sensor_msgs::msg::Image>(
     "/image_raw", qos_reliable_stream,
     std::bind(&Yolov8ObjectDetection::process_image, this, std::placeholders::_1), options);
 
-  // Create publisher for hand landmarks
+  // Create publisher
   bbox_publisher_ =
     this->create_publisher<geometry_msgs::msg::PoseArray>("bounding_box", qos_reliable_stream);
+  diagnostic_timing_publisher_ = this->create_publisher<diagnostic_msgs::msg::DiagnosticStatus>(
+    "inference_timing", qos_sensor_data);
   object_detection_publisher_ =
-    this->create_publisher<std_msgs::msg::String>("rps_hand_detect", qos_sensor_data);
+    this->create_publisher<std_msgs::msg::String>("object_detect", qos_sensor_data);
 
   // Log configuration
   RCLCPP_INFO(this->get_logger(), "ObjectDetection initialized");
@@ -94,15 +118,9 @@ Yolov8ObjectDetection::Yolov8ObjectDetection() : Node("Yolov8ObjectDetection")
     this->get_logger(), "Publishing bounding boxes to: %s", bbox_publisher_->get_topic_name());
 
   // Create the model based on type and load it
-  if (model_type_ == "yolov8_rps") {
-    obj_detect_model_ = std::make_unique<rzv_model::Yolov8RPSModel>();
-    RCLCPP_INFO(this->get_logger(), "Using YOLOV8 RPS Hand model");
-  } else {
-    RCLCPP_WARN(
-      this->get_logger(), "Unrecognized model type: %s, using YOLOv8 model by default",
-      model_type_.c_str());
-    obj_detect_model_ = std::make_unique<rzv_model::Yolov8RPSModel>();
-  }
+
+  obj_detect_model_ = std::make_unique<rzv_model::YOLOv8DetectModel>();
+  RCLCPP_INFO(this->get_logger(), "Using YOLOv8DetectModel Detection model");
 
   // Set model parameters
   if (!class_names_.empty()) {
@@ -126,6 +144,37 @@ Yolov8ObjectDetection::~Yolov8ObjectDetection()
   bbox_publisher_.reset();
   obj_detect_model_.reset();
   object_detection_publisher_.reset();
+  diagnostic_timing_publisher_.reset();
+}
+
+rcl_interfaces::msg::SetParametersResult Yolov8ObjectDetection::on_param_change(
+  const std::vector<rclcpp::Parameter> & params)
+{
+  for (const auto & param : params) {
+    if (param.get_name() == "cpu_dfl_multi_thread") {
+      cpu_dfl_multi_thread_ = param.as_bool();
+      obj_detect_model_->set_cpu_dfl_multi_thread(cpu_dfl_multi_thread_);
+    } else if (param.get_name() == "dfl_sigmoid_mode") {
+      // Make sure the value is valid
+      int mode_int = param.as_int();
+      if (
+        mode_int < static_cast<int>(rzv_model::DFLSigmoidMode::InDfl) ||
+        mode_int > static_cast<int>(rzv_model::DFLSigmoidMode::AfterThreshold)) {
+        // Inform the valid values
+        RCLCPP_WARN(
+          this->get_logger(), "Invalid dfl_sigmoid_mode value %d, must be between %d and %d",
+          mode_int, static_cast<int>(rzv_model::DFLSigmoidMode::InDfl),
+          static_cast<int>(rzv_model::DFLSigmoidMode::AfterThreshold));
+        continue;
+      }
+      dfl_sigmoid_mode_ = static_cast<rzv_model::DFLSigmoidMode>(param.as_int());
+      obj_detect_model_->set_dfl_sigmoid_mode(dfl_sigmoid_mode_);
+    }
+  }
+
+  rcl_interfaces::msg::SetParametersResult result;
+  result.successful = true;
+  return result;
 }
 
 void Yolov8ObjectDetection::process_image(const sensor_msgs::msg::Image::SharedPtr msg)
@@ -168,29 +217,28 @@ void Yolov8ObjectDetection::process_image(const sensor_msgs::msg::Image::SharedP
     }
 
     // Run object detection model
-
+    bool has_valid_detections = false;
     auto object_detection_name = std::make_unique<std_msgs::msg::String>();
-    auto input = rzv_model::ModelInput{image, cv::Rect(0, 0, image.cols, image.rows)};
-    auto result = obj_detect_model_->run<rzv_model::YOLOv8DetectionResult>(input);
-    cv::Rect first_hand_bbox;
-
+    auto object_image_input = rzv_model::ModelInput{image, cv::Rect(0, 0, image.cols, image.rows)};
+    auto result = obj_detect_model_->run<rzv_model::YOLOv8DetectionResult>(object_image_input);
     if (result) {
       // Create pose array for all valid detections
       auto pose_array = std::make_unique<geometry_msgs::msg::PoseArray>();
       pose_array->header.stamp = this->now();
       pose_array->header.frame_id = "camera_frame";
 
-      bool has_valid_detections = false;
-
       for (const auto & detection : result->detections) {
         if (detection.is_valid) {
-          has_valid_detections = true;
-          object_detection_name->data = detection.class_name.c_str();
+          // Log detection info
+
           RCLCPP_INFO_THROTTLE(
             this->get_logger(), *this->get_clock(), 1000,
-            "Detected %s at: %2f, %2f, %2f, %2f with score %0.2f", detection.class_name.c_str(),
+            "Detected %s at: %2d, %2d, %2d, %2d with score %0.2f", detection.class_name.c_str(),
             detection.bbox.x, detection.bbox.y, detection.bbox.width, detection.bbox.height,
             detection.confidence);
+
+          has_valid_detections = true;
+          object_detection_name->data = detection.class_name.c_str();
 
           // Add bounding box to the pose array with class label and confidence
           rzv_model::Utils::encode_bounding_box_to_poses(
@@ -199,13 +247,19 @@ void Yolov8ObjectDetection::process_image(const sensor_msgs::msg::Image::SharedP
         }
       }
 
+      RCLCPP_DEBUG(this->get_logger(), "Finished processing image");
       // Publish only if we have valid detections
       if (has_valid_detections) {
         bbox_publisher_->publish(std::move(pose_array));
         object_detection_publisher_->publish(std::move(object_detection_name));
+
+        // Publish diagnostic timing information
+        auto diagnostic_msg = rzv_model::Utils::encode_inference_timing_diagnostic(
+          "YOLOX Object Detection Inference Timing", result->preprocess_ms, result->inference_ms,
+          result->postprocess_ms);
+        diagnostic_timing_publisher_->publish(std::move(diagnostic_msg));
       }
     }
-
   } catch (const std::exception & e) {
     RCLCPP_ERROR(this->get_logger(), "Error processing image: %s", e.what());
   }
