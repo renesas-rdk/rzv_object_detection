@@ -11,6 +11,9 @@ find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(rzv_model REQUIRED)
+find_package(rzv_yolox REQUIRED)
+find_package(rzv_yolov8 REQUIRED)
+find_package(rzv_model_utils_ros2 REQUIRED)
 
 # Shared include directories
 set(SHARED_INCLUDE_DIRS
@@ -34,6 +37,8 @@ ament_target_dependencies(${TARGET_OBJ_DET_YOLOX}
   sensor_msgs
   geometry_msgs
   rzv_model
+  rzv_yolox
+  rzv_model_utils_ros2
 )
 
 # create target
@@ -49,8 +54,10 @@ ament_target_dependencies(${TARGET_OBJ_DET_YOLOv8}
   rclcpp
   sensor_msgs
   std_msgs
-  rzv_model
   geometry_msgs
+  rzv_model
+  rzv_yolov8
+  rzv_model_utils_ros2
 )
 
 install(

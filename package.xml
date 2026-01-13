@@ -13,6 +13,9 @@
   <depend>sensor_msgs</depend>
   <depend>geometry_msgs</depend>
   <depend>rzv_model</depend>
+  <depend>rzv_yolox</depend>
+  <depend>rzv_yolov8</depend>
+  <depend>rzv_model_utils_ros2</depend>
 
   <exec_depend>image_publisher</exec_depend>
   <exec_depend>foxglove_bridge</exec_depend>
