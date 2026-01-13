@@ -35,3 +35,9 @@ models:
       0: paper
       1: rock
       2: scissor
+
+  # GOLD-YOLO models
+  gold_yolo_hand:
+    path: "models/gold_yolo_hand"
+    names:    # Classes
+      0: hand
