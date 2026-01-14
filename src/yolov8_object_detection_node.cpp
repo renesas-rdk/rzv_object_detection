@@ -23,6 +23,7 @@
 #include <vector>
 
 #include "rzv_model_utils_ros2/model_utils.hpp"
+#include "rzv_model/utils.hpp"
 #include "rzv_yolov8/yolov8_utils.hpp"
 
 namespace rzv_object_detection
@@ -34,7 +35,7 @@ Yolov8ObjectDetection::Yolov8ObjectDetection() : Node("Yolov8ObjectDetection")
 
   // Declare parameters with default values
   this->declare_parameter("model_path", "");
-  this->declare_parameter("model_type", "yolox_pascal_voc");
+  this->declare_parameter("model_type", "yolov8_rps");
   this->declare_parameter("class_names", std::vector<std::string>{});
   this->declare_parameter("confidence_threshold", 0.5f);
   this->declare_parameter("iou_threshold", 0.45f);
@@ -56,7 +57,7 @@ Yolov8ObjectDetection::Yolov8ObjectDetection() : Node("Yolov8ObjectDetection")
 
   // Load model config from YAML config
   // Fallback logic: User → YAML → default value
-  auto object_model = rzv_model::Utils::load_model_info(
+  auto object_model = rzv_model::UtilsROS::load_model_info(
     "rzv_object_detection", model_type_, model_path_param, class_names_param);  // Object model
   model_path_ = object_model.model_path;
   class_names_ = object_model.class_names;
@@ -241,7 +242,7 @@ void Yolov8ObjectDetection::process_image(const sensor_msgs::msg::Image::SharedP
           object_detection_name->data = detection.class_name.c_str();
 
           // Add bounding box to the pose array with class label and confidence
-          rzv_model::Utils::encode_bounding_box_to_poses(
+          rzv_model::UtilsROS::encode_bounding_box_to_poses(
             *pose_array, detection.bbox, detection.class_name, detection.class_id,
             detection.confidence);
         }
@@ -254,8 +255,8 @@ void Yolov8ObjectDetection::process_image(const sensor_msgs::msg::Image::SharedP
         object_detection_publisher_->publish(std::move(object_detection_name));
 
         // Publish diagnostic timing information
-        auto diagnostic_msg = rzv_model::Utils::encode_inference_timing_diagnostic(
-          "YOLOX Object Detection Inference Timing", result->preprocess_ms, result->inference_ms,
+        auto diagnostic_msg = rzv_model::UtilsROS::encode_inference_timing_diagnostic(
+          "YOLOv8 Object Detection Inference Timing", result->preprocess_ms, result->inference_ms,
           result->postprocess_ms);
         diagnostic_timing_publisher_->publish(std::move(diagnostic_msg));
       }

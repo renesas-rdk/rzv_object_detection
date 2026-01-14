@@ -1,7 +1,7 @@
 models:
   # YOLOx models
   yolox_hand:
-    path: "models/gold_yolox_hand"  ## gold_yolox_hand , yolox_hand
+    path: "models/yolox_hand" #yolox_hand
     names:
       0: hand
   yolox_pascal_voc:

@@ -16,7 +16,7 @@ This package provides ROS2 nodes for:
 - Support for multiple detection models:
   - YOLOX Pascal VOC (20 classes)
   - YOLOX Hand Detection
-  - Gold YOLOX Hand Detection
+  - Gold YOLO Hand Detection
   - YOLOv8 RPS Hand Detection
 - Configurable detection parameters
 - Integration with Foxglove Studio for visualization
@@ -51,7 +51,7 @@ This node performs object detection on incoming image streams and publishes boun
 | Topic | Type | Description |
 |-------|------|-------------|
 | `bounding_box` | `geometry_msgs/msg/PoseArray` | Detection results as pose arrays |
-| `rps_hand_detect` | `std_msgs/msg/String` | Detected hand gesture name (R/P/S)  |
+| `object_detect` | `std_msgs/msg/String` | Detected object name |
 
 ## Launch Files
 
@@ -66,14 +66,14 @@ ros2 launch rzv_object_detection camera_rps_hand_detection_yolov8.launch.py
 
 ### Static Image Detection
 ```bash
-# Pascal VOC object detection on static image
+# Pascal VOC object detection on static image using YOLOX
 ros2 launch rzv_object_detection static_object_detection_yolox.launch.py
 
 # Hand detection on static image using YOLOX
 ros2 launch rzv_object_detection static_hand_detection_yolox.launch.py
 
-# Hand detection on static image using Gold YOLOX
-ros2 launch rzv_object_detection static_hand_detection_gold_yolox.launch.py
+# Hand detection on static image using Gold YOLO
+ros2 launch rzv_object_detection static_hand_detection_gold_yolo.launch.py
 
 # RPS hand detection on static image using YOLOv8
 ros2 launch rzv_object_detection static_rps_hand_detection_yolov8.launch.py
@@ -127,13 +127,13 @@ ros2 launch rzv_object_detection static_rps_hand_detection_yolov8.launch.py
 | yolox_object_detection | confidence_threshold | 0.8 | Confidence threshold |
 | yolox_object_detection | iou_threshold | 0.3 | IoU threshold for NMS |
 
-### static_hand_detection_gold_yolox.launch.py
+### static_hand_detection_gold_yolo.launch.py
 
 | Node | Parameter | Default | Description |
 |------|-----------|---------|-------------|
 | image_publisher | filename | config/test/hand_5.png | Test image path |
 | image_publisher | publish_rate | 1.0 | Image publishing rate in Hz |
-| yolox_object_detection | model_type | gold_yolox_hand | Detection model type |
+| yolox_object_detection | model_type | gold_yolo_hand | Detection model type |
 | yolox_object_detection | processing_queue_size | 1 | Queue size for processing |
 | yolox_object_detection | confidence_threshold | 0.4 | Confidence threshold |
 | yolox_object_detection | iou_threshold | 0.45 | IoU threshold for NMS |
@@ -155,7 +155,7 @@ ros2 launch rzv_object_detection static_rps_hand_detection_yolov8.launch.py
 
 ```bash
 # Run with custom model type and thresholds
-ros2 run rzv_object_detection yolox_object_detection --ros-args -p model_type:=gold_yolox_hand -p confidence_threshold:=0.6 -p iou_threshold:=0.4
+ros2 run rzv_object_detection yolox_object_detection --ros-args -p model_type:=yolox_hand -p confidence_threshold:=0.6 -p iou_threshold:=0.4
 
 # Run with specific model path
 ros2 run rzv_object_detection yolox_object_detection --ros-args -p model_path:=/path/to/custom/drpai/model
@@ -202,7 +202,8 @@ ros2 run foxglove_keypoint_publisher foxglove_keypoint_publisher_node --ros-args
 
 - ROS2
 - OpenCV
-- rzv_model package
+- rzv_model_utils_ros2 packages
+- rzv_model and rzv_<AI-model-related> packages
 - image_publisher (for static images)
 - v4l2_camera (for camera input)
 - foxglove_keypoint_publisher (for visualization)

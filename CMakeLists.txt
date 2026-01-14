@@ -21,6 +21,7 @@ set(SHARED_INCLUDE_DIRS
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
   $<BUILD_INTERFACE:/usr/include/renesas/opencv4>
+  $<BUILD_INTERFACE:$ENV{TVM_ROOT}/3rdparty/spdlog/include>
 )
 
 # create target
@@ -51,6 +52,7 @@ add_executable(${TARGET_OBJ_DET_YOLOv8}
 # include directories
 target_include_directories(${TARGET_OBJ_DET_YOLOv8} PUBLIC ${SHARED_INCLUDE_DIRS})
 
+# ROS2 dependencies
 ament_target_dependencies(${TARGET_OBJ_DET_YOLOv8}
   rclcpp
   sensor_msgs
@@ -69,6 +71,7 @@ add_executable(${TARGET_OBJ_DET_GOLD_YOLO}
 
 # include directories
 target_include_directories(${TARGET_OBJ_DET_GOLD_YOLO} PUBLIC ${SHARED_INCLUDE_DIRS})
+
 # ROS2 dependencies
 ament_target_dependencies(${TARGET_OBJ_DET_GOLD_YOLO}
   rclcpp

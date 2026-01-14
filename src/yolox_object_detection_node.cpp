@@ -23,7 +23,7 @@
 #include <vector>
 
 #include "rzv_model_utils_ros2/model_utils.hpp"
-
+#include "rzv_model/utils.hpp"
 
 namespace rzv_object_detection
 {
@@ -52,7 +52,7 @@ YoloXObjectDetection::YoloXObjectDetection() : Node("YoloXObjectDetection")
 
   // Load model config from YAML config
   // Fallback logic: User → YAML → default value
-  auto object_model = rzv_model::Utils::load_model_info(
+  auto object_model = rzv_model::UtilsROS::load_model_info(
     "rzv_object_detection", model_type_, model_path_param, class_names_param);  // Object model
   model_path_ = object_model.model_path;
   class_names_ = object_model.class_names;
@@ -190,7 +190,7 @@ void YoloXObjectDetection::process_image(const sensor_msgs::msg::Image::SharedPt
           has_valid_detections = true;
 
           // Add bounding box to the pose array with class label and confidence
-          rzv_model::Utils::encode_bounding_box_to_poses(
+          rzv_model::UtilsROS::encode_bounding_box_to_poses(
             *pose_array, detection.bbox, detection.class_name, detection.class_id,
             detection.confidence);
         }
@@ -202,7 +202,7 @@ void YoloXObjectDetection::process_image(const sensor_msgs::msg::Image::SharedPt
         bbox_publisher_->publish(std::move(pose_array));
 
         // Publish diagnostic timing information
-        auto diagnostic_msg = rzv_model::Utils::encode_inference_timing_diagnostic(
+        auto diagnostic_msg = rzv_model::UtilsROS::encode_inference_timing_diagnostic(
           "YOLOX Object Detection Inference Timing", result->preprocess_ms, result->inference_ms,
           result->postprocess_ms);
         diagnostic_timing_publisher_->publish(std::move(diagnostic_msg));
