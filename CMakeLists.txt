@@ -20,8 +20,6 @@ find_package(rzv_model_utils_ros2 REQUIRED)
 set(SHARED_INCLUDE_DIRS
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
-  $<BUILD_INTERFACE:/usr/include/renesas/opencv4>
-  $<BUILD_INTERFACE:$ENV{TVM_ROOT}/3rdparty/spdlog/include>
 )
 
 # create target
