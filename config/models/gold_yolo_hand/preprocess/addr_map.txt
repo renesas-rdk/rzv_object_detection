@@ -3,10 +3,10 @@ data 708000 197d000
 data_out 2085000 384000
 work 2409000 80
 weight 2409080 80
-drp_config 2409100 188060
-aimac_param_cmd 2591180 20
-aimac_param_desc 25911c0 20
-aimac_cmd 2591200 200
-aimac_desc 2591400 80
-drp_param 2591480 160
-drp_desc 2591600 190
+drp_config 2409100 13ad98
+aimac_param_cmd 2543ec0 20
+aimac_param_desc 2543f00 20
+aimac_cmd 2543f40 200
+aimac_desc 2544140 80
+drp_param 2544200 160
+drp_desc 2544380 190
