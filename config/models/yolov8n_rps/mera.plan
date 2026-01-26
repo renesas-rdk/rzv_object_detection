@@ -1,0 +1,182 @@
+{
+  "execution": {
+    "stages": [
+      [
+        [
+          [
+            {
+              "backend": "drp_tvm",
+              "binaries_location": "sub_0000__CPU_DRP_TVM",
+              "name": "sub_0000"
+            },
+            {
+              "input_buffers": {
+                "images": 0
+              },
+              "input_order": [
+                "images"
+              ],
+              "output_buffers": {
+                "_model_22_cv2_0_cv2_0_2_Conv_output_0_70377_70611": 2,
+                "_model_22_cv2_1_cv2_1_2_Conv_output_0_70391_70612": 4,
+                "_model_22_cv2_2_cv2_2_2_Conv_output_0_70405_70613": 6,
+                "_model_22_cv3_0_cv3_0_2_Conv_output_0_70384_70614": 1,
+                "_model_22_cv3_1_cv3_1_2_Conv_output_0_70398_70615": 3,
+                "_model_22_cv3_2_cv3_2_2_Conv_output_0_70412_70616": 5
+              },
+              "output_order": [
+                "_model_22_cv3_0_cv3_0_2_Conv_output_0_70384_70614",
+                "_model_22_cv2_0_cv2_0_2_Conv_output_0_70377_70611",
+                "_model_22_cv3_1_cv3_1_2_Conv_output_0_70398_70615",
+                "_model_22_cv2_1_cv2_1_2_Conv_output_0_70391_70612",
+                "_model_22_cv3_2_cv3_2_2_Conv_output_0_70412_70616",
+                "_model_22_cv2_2_cv2_2_2_Conv_output_0_70405_70613"
+              ]
+            }
+          ]
+        ]
+      ]
+    ]
+  },
+  "memory": {
+    "buffers": [
+      {
+        "alignment": 256,
+        "alloc_mode": "linux_malloc",
+        "bytes_size": 4915200,
+        "data_type": "float32",
+        "name": "images",
+        "offset": 0,
+        "shape": [
+          1,
+          3,
+          640,
+          640
+        ],
+        "size": 1228800
+      },
+      {
+        "alignment": 256,
+        "alloc_mode": "linux_malloc",
+        "bytes_size": 38400,
+        "data_type": "float16",
+        "name": "_model_22_cv3_0_cv3_0_2_Conv_output_0_70384_70614",
+        "offset": 0,
+        "shape": [
+          1,
+          3,
+          80,
+          80
+        ],
+        "size": 19200
+      },
+      {
+        "alignment": 256,
+        "alloc_mode": "linux_malloc",
+        "bytes_size": 819200,
+        "data_type": "float16",
+        "name": "_model_22_cv2_0_cv2_0_2_Conv_output_0_70377_70611",
+        "offset": 0,
+        "shape": [
+          1,
+          64,
+          80,
+          80
+        ],
+        "size": 409600
+      },
+      {
+        "alignment": 256,
+        "alloc_mode": "linux_malloc",
+        "bytes_size": 9600,
+        "data_type": "float16",
+        "name": "_model_22_cv3_1_cv3_1_2_Conv_output_0_70398_70615",
+        "offset": 0,
+        "shape": [
+          1,
+          3,
+          40,
+          40
+        ],
+        "size": 4800
+      },
+      {
+        "alignment": 256,
+        "alloc_mode": "linux_malloc",
+        "bytes_size": 204800,
+        "data_type": "float16",
+        "name": "_model_22_cv2_1_cv2_1_2_Conv_output_0_70391_70612",
+        "offset": 0,
+        "shape": [
+          1,
+          64,
+          40,
+          40
+        ],
+        "size": 102400
+      },
+      {
+        "alignment": 256,
+        "alloc_mode": "linux_malloc",
+        "bytes_size": 2400,
+        "data_type": "float16",
+        "name": "_model_22_cv3_2_cv3_2_2_Conv_output_0_70412_70616",
+        "offset": 0,
+        "shape": [
+          1,
+          3,
+          20,
+          20
+        ],
+        "size": 1200
+      },
+      {
+        "alignment": 256,
+        "alloc_mode": "linux_malloc",
+        "bytes_size": 51200,
+        "data_type": "float16",
+        "name": "_model_22_cv2_2_cv2_2_2_Conv_output_0_70405_70613",
+        "offset": 0,
+        "shape": [
+          1,
+          64,
+          20,
+          20
+        ],
+        "size": 25600
+      }
+    ],
+    "input_buffers": [
+      [
+        "images",
+        0
+      ]
+    ],
+    "output_buffers": [
+      [
+        "_model_22_cv3_0_cv3_0_2_Conv_output_0_70384_70614",
+        1
+      ],
+      [
+        "_model_22_cv2_0_cv2_0_2_Conv_output_0_70377_70611",
+        2
+      ],
+      [
+        "_model_22_cv3_1_cv3_1_2_Conv_output_0_70398_70615",
+        3
+      ],
+      [
+        "_model_22_cv2_1_cv2_1_2_Conv_output_0_70391_70612",
+        4
+      ],
+      [
+        "_model_22_cv3_2_cv3_2_2_Conv_output_0_70412_70616",
+        5
+      ],
+      [
+        "_model_22_cv2_2_cv2_2_2_Conv_output_0_70405_70613",
+        6
+      ]
+    ]
+  }
+}
