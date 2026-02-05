@@ -11,12 +11,15 @@ find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(rzv_model REQUIRED)
+find_package(rzv_yolox REQUIRED)
+find_package(rzv_yolov8 REQUIRED)
+find_package(rzv_gold_yolo REQUIRED)
+find_package(rzv_model_utils_ros2 REQUIRED)
 
 # Shared include directories
 set(SHARED_INCLUDE_DIRS
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
-  $<BUILD_INTERFACE:/usr/include/renesas/opencv4>
 )
 
 # create target
@@ -34,6 +37,8 @@ ament_target_dependencies(${TARGET_OBJ_DET_YOLOX}
   sensor_msgs
   geometry_msgs
   rzv_model
+  rzv_yolox
+  rzv_model_utils_ros2
 )
 
 # create target
@@ -45,16 +50,38 @@ add_executable(${TARGET_OBJ_DET_YOLOv8}
 # include directories
 target_include_directories(${TARGET_OBJ_DET_YOLOv8} PUBLIC ${SHARED_INCLUDE_DIRS})
 
+# ROS2 dependencies
 ament_target_dependencies(${TARGET_OBJ_DET_YOLOv8}
   rclcpp
   sensor_msgs
   std_msgs
-  rzv_model
   geometry_msgs
+  rzv_model
+  rzv_yolov8
+  rzv_model_utils_ros2
+)
+
+# create target
+set(TARGET_OBJ_DET_GOLD_YOLO gold_yolo_object_detection)
+add_executable(${TARGET_OBJ_DET_GOLD_YOLO}
+  src/gold_yolo_object_detection_node.cpp
+)
+
+# include directories
+target_include_directories(${TARGET_OBJ_DET_GOLD_YOLO} PUBLIC ${SHARED_INCLUDE_DIRS})
+
+# ROS2 dependencies
+ament_target_dependencies(${TARGET_OBJ_DET_GOLD_YOLO}
+  rclcpp
+  sensor_msgs
+  geometry_msgs
+  rzv_model
+  rzv_gold_yolo
+  rzv_model_utils_ros2
 )
 
 install(
-  TARGETS ${TARGET_OBJ_DET_YOLOX} ${TARGET_OBJ_DET_YOLOv8}
+  TARGETS ${TARGET_OBJ_DET_YOLOX} ${TARGET_OBJ_DET_YOLOv8} ${TARGET_OBJ_DET_GOLD_YOLO}
   EXPORT rzv_object_detection_targets
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib

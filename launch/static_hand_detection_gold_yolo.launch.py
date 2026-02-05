@@ -45,10 +45,10 @@ def generate_launch_description():
     # Create object detection node
     object_detection_node = Node(
         package='rzv_object_detection',
-        executable='yolox_object_detection',
+        executable='gold_yolo_object_detection',
         name='object_detection',
         parameters=[{
-            'model_type': 'gold_yolox_hand',
+            'model_type': 'gold_yolo_hand',
             'processing_queue_size': 1,
             'confidence_threshold': 0.4,
             'iou_threshold': 0.45,

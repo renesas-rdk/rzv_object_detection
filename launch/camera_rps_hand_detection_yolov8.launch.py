@@ -53,6 +53,7 @@ def generate_launch_description():
             ('/image_raw', '/image_raw'),
             # publish hand landmark topic
             ('/bounding_box', '/object_detection/bounding_box'),
+            ('/object_detect', '/object_detection/rps_hand_detect'),
         ],
         output='screen',
         arguments=['--ros-args', '--log-level', 'INFO']

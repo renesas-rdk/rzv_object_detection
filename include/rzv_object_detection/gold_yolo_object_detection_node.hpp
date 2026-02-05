@@ -24,17 +24,16 @@
 #include <string>
 #include <vector>
 
-#include "rzv_yolox/yolox_model.hpp"
+#include "rzv_gold_yolo/gold_yolo_model.hpp"
 
 namespace rzv_object_detection
 {
 
-class YoloXObjectDetection : public rclcpp::Node
+class GoldYoloObjectDetection : public rclcpp::Node
 {
 public:
-  explicit YoloXObjectDetection();
-  ~YoloXObjectDetection();
-
+  explicit GoldYoloObjectDetection();
+  ~GoldYoloObjectDetection();
 private:
   void process_image(const sensor_msgs::msg::Image::SharedPtr msg);
 
@@ -46,7 +45,7 @@ private:
   rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticStatus>::SharedPtr diagnostic_timing_publisher_;
 
   // Model(s)
-  std::unique_ptr<rzv_model::YoloxModel> obj_detect_model_;
+  std::unique_ptr<rzv_model::GoldYoloModel> obj_detect_model_;
 
   // Callback group
   rclcpp::CallbackGroup::SharedPtr callback_group_;
