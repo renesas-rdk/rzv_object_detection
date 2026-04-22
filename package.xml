@@ -11,6 +11,7 @@
 
   <depend>rclcpp</depend>
   <depend>sensor_msgs</depend>
+  <depend>std_msgs</depend>
   <depend>geometry_msgs</depend>
   <depend>rzv_model</depend>
   <depend>rzv_yolox</depend>
@@ -21,6 +22,7 @@
   <exec_depend>v4l2_camera</exec_depend>
   <exec_depend>image_publisher</exec_depend>
   <exec_depend>foxglove_bridge</exec_depend>
+  <exec_depend>foxglove_keypoint_publisher</exec_depend>
   <exec_depend>launch_ros</exec_depend>
 
   <test_depend>ament_lint_auto</test_depend>
