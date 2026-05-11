@@ -36,6 +36,14 @@ models:
       1: rock
       2: scissor
 
+  # YOLOx_s RPS models
+  yolox_s_rps:
+    path: "models/yolox_s_rps"
+    names:    # Classes
+      0: paper
+      1: rock
+      2: scissor
+
   # GOLD-YOLO models
   gold_yolo_hand:
     path: "models/gold_yolo_hand"

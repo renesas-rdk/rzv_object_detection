@@ -1,18 +1,6 @@
 # *********************************************************************************************************************
-# Copyright [2025] Renesas Electronics Corporation and/or its licensors. All Rights Reserved.
-#
-# The contents of this file (the "contents") are proprietary and confidential to Renesas Electronics Corporation
-# and/or its licensors ("Renesas") and subject to statutory and contractual protections.
-#
-# Unless otherwise expressly agreed in writing between Renesas and you: 1) you may not use, copy, modify, distribute,
-# display, or perform the contents; 2) you may not use any name or mark of Renesas for advertising or publicity
-# purposes or in connection with your use of the contents; 3) RENESAS MAKES NO WARRANTY OR REPRESENTATIONS ABOUT THE
-# SUITABILITY OF THE CONTENTS FOR ANY PURPOSE; THE CONTENTS ARE PROVIDED "AS IS" WITHOUT ANY EXPRESS OR IMPLIED
-# WARRANTY, INCLUDING THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND
-# NON-INFRINGEMENT; AND 4) RENESAS SHALL NOT BE LIABLE FOR ANY DIRECT, INDIRECT, SPECIAL, OR CONSEQUENTIAL DAMAGES,
-# INCLUDING DAMAGES RESULTING FROM LOSS OF USE, DATA, OR PROJECTS, WHETHER IN AN ACTION OF CONTRACT OR TORT, ARISING
-# OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THE CONTENTS. Third-party contents included in this file may
-# be subject to different terms.
+#  Copyright (C) 2026 Renesas Electronics Corporation and/or its licensors.
+#  SPDX-License-Identifier: AGPL-3.0-only
 # *********************************************************************************************************************
 
 import os
@@ -53,6 +41,8 @@ def generate_launch_description():
             ('/image_raw', '/image_raw'),
             # publish bounding box topic
             ('/bounding_box', '/object_detection/bounding_box'),
+            # publish inference timing topic
+            ('/inference_timing', '/object_detection/inference_timing'),
         ],
         output='screen',
         arguments=['--ros-args', '--log-level', 'INFO']
@@ -77,6 +67,20 @@ def generate_launch_description():
         output='screen'
     )
 
+    # Add inference timing overlay node — displays pre/inference/post times as a Foxglove text overlay
+    inference_timing_overlay_node = Node(
+        package='foxglove_keypoint_publisher',
+        executable='inference_timing_overlay_node',
+        name='inference_timing_overlay_node',
+        remappings=[
+            # subscribe to inference timing topic
+            ('/inference_timing', '/object_detection/inference_timing'),
+            # publish overlay annotations
+            ('/inference_timing_visualization', '/inference_timing_visualization'),
+        ],
+        output='screen'
+    )
+
     # Foxglove bridge for visualization in Foxglove Studio
     foxglove_bridge_launch = IncludeLaunchDescription(
         FrontendLaunchDescriptionSource(
@@ -89,5 +93,6 @@ def generate_launch_description():
         camera_node,
         object_detection_node,
         foxglove_hand_bbox_publisher_node,
+        inference_timing_overlay_node,
         foxglove_bridge_launch
     ])

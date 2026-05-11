@@ -2,7 +2,7 @@
 //  Copyright (C) 2026 Renesas Electronics Corporation and/or its licensors.
 //  SPDX-License-Identifier: AGPL-3.0-only
 // *********************************************************************************************************************
-#include "rzv_object_detection/yolox_object_detection_node.hpp"
+#include "rzv_object_detection/yolox_rps_detection_node.hpp"
 
 #include <unistd.h>
 
@@ -22,7 +22,7 @@ YoloXObjectDetection::YoloXObjectDetection() : Node("YoloXObjectDetection")
 
   // Declare parameters with default values
   this->declare_parameter("model_path", "");
-  this->declare_parameter("model_type", "yolox_pascal_voc");
+  this->declare_parameter("model_type", "yolox_s_rps");
   this->declare_parameter("class_names", std::vector<std::string>{});
   this->declare_parameter("confidence_threshold", 0.5f);
   this->declare_parameter("iou_threshold", 0.45f);
@@ -41,7 +41,8 @@ YoloXObjectDetection::YoloXObjectDetection() : Node("YoloXObjectDetection")
   // Load model config from YAML config
   // Fallback logic: User → YAML → default value
   auto object_model = rzv_model::UtilsROS::load_model_info(
-    "rzv_object_detection", model_type_, model_path_param, class_names_param);  // Object model
+    "rzv_object_detection", model_type_, model_path_param,
+    class_names_param);  // Object model
   model_path_ = object_model.model_path;
   class_names_ = object_model.class_names;
 
@@ -98,6 +99,7 @@ YoloXObjectDetection::YoloXObjectDetection() : Node("YoloXObjectDetection")
   }
   obj_detect_model_->set_confidence_threshold(confidence_threshold_);
   obj_detect_model_->set_iou_threshold(iou_threshold_);
+  obj_detect_model_->set_bgr_input(object_model.input_order == "bgr");
 
   // Load the model
   if (!obj_detect_model_->load(model_path_)) {
@@ -154,7 +156,6 @@ void YoloXObjectDetection::process_image(const sensor_msgs::msg::Image::SharedPt
       RCLCPP_ERROR(this->get_logger(), "Unsupported image encoding: %s", msg->encoding.c_str());
       return;
     }
-
     // Run object detection model
     bool has_valid_detections = false;
     auto object_image_input = rzv_model::ModelInput{image, cv::Rect(0, 0, image.cols, image.rows)};
@@ -191,7 +192,7 @@ void YoloXObjectDetection::process_image(const sensor_msgs::msg::Image::SharedPt
 
         // Publish diagnostic timing information
         auto diagnostic_msg = rzv_model::UtilsROS::encode_inference_timing_diagnostic(
-          "YOLOX Object Detection Inference Timing", result->preprocess_ms, result->inference_ms,
+          "YOLOX Inference Timing", result->preprocess_ms, result->inference_ms,
           result->postprocess_ms);
         diagnostic_timing_publisher_->publish(std::move(diagnostic_msg));
       }

@@ -6,8 +6,8 @@ A ROS2 package for performing object detection on Renesas RZ/V2H platform. Imple
 
 This package provides ROS2 nodes for:
 - General object detection using YOLOX Pascal VOC model
-- Hand detection using YOLOX and Gold YOLOX models
-- Rock-Paper-Scissors hand detection using YOLOv8 models
+- Hand detection using YOLOX and Gold YOLO models
+- Rock-Paper-Scissors hand detection using YOLOv8 and YOLOX models
 - Real-time camera-based detection
 - Static image-based detection
 
@@ -17,7 +17,7 @@ This package provides ROS2 nodes for:
   - YOLOX Pascal VOC (20 classes)
   - YOLOX Hand Detection
   - Gold YOLO Hand Detection
-  - YOLOv8 RPS Hand Detection
+  - YOLOv8/YOLOX RPS Hand Detection
 - Configurable detection parameters
 - Integration with Foxglove Studio for visualization
 - Multi-threaded processing support
@@ -60,8 +60,11 @@ This node performs object detection on incoming image streams and publishes boun
 # Hand detection using camera input
 ros2 launch rzv_object_detection camera_hand_detection_yolox.launch.py
 
-# RPS hand detection using camera input
+# RPS hand detection using camera input (YOLOv8)
 ros2 launch rzv_object_detection camera_rps_hand_detection_yolov8.launch.py
+
+# RPS hand detection using camera input (YOLOX)
+ros2 launch rzv_object_detection camera_rps_hand_detection_yolox.launch.py
 ```
 
 ### Static Image Detection
@@ -77,6 +80,9 @@ ros2 launch rzv_object_detection static_hand_detection_gold_yolo.launch.py
 
 # RPS hand detection on static image using YOLOv8
 ros2 launch rzv_object_detection static_rps_hand_detection_yolov8.launch.py
+
+# RPS hand detection on static image using YOLOX
+ros2 launch rzv_object_detection static_rps_hand_detection_yolox.launch.py
 ```
 
 ## Launch File Parameters
@@ -104,6 +110,18 @@ ros2 launch rzv_object_detection static_rps_hand_detection_yolov8.launch.py
 | yolov8_object_detection | processing_queue_size | 1 | Queue size for processing |
 | yolov8_object_detection | confidence_threshold | 0.8 | Confidence threshold |
 | yolov8_object_detection | iou_threshold | 0.3 | IoU threshold for NMS |
+
+### camera_rps_hand_detection_yolox.launch.py
+
+| Node | Parameter | Default | Description |
+|------|-----------|---------|-------------|
+| v4l2_camera | video_device | /dev/video0 | Camera device path |
+| v4l2_camera | output_encoding | yuv422_yuy2 | Image encoding format |
+| v4l2_camera | image_size | [640, 480] | Camera resolution |
+| yolox_rps_detection | model_type | yolox_s_rps | Detection model type |
+| yolox_rps_detection | processing_queue_size | 1 | Queue size for processing |
+| yolox_rps_detection | confidence_threshold | 0.7 | Confidence threshold |
+| yolox_rps_detection | iou_threshold | 0.45 | IoU threshold for NMS |
 
 ### static_object_detection_yolox.launch.py
 
@@ -148,6 +166,17 @@ ros2 launch rzv_object_detection static_rps_hand_detection_yolov8.launch.py
 | yolov8_object_detection | processing_queue_size | 1 | Queue size for processing |
 | yolov8_object_detection | confidence_threshold | 0.8 | Confidence threshold |
 | yolov8_object_detection | iou_threshold | 0.3 | IoU threshold for NMS |
+
+### static_rps_hand_detection_yolox.launch.py
+
+| Node | Parameter | Default | Description |
+|------|-----------|---------|-------------|
+| image_publisher | filename | config/test/rps_game.jpg | Test image path |
+| image_publisher | publish_rate | 1.0 | Image publishing rate in Hz |
+| yolox_rps_detection | model_type | yolox_s_rps | Detection model type |
+| yolox_rps_detection | processing_queue_size | 1 | Queue size for processing |
+| yolox_rps_detection | confidence_threshold | 0.7 | Confidence threshold |
+| yolox_rps_detection | iou_threshold | 0.45 | IoU threshold for NMS |
 
 ## Usage Examples
 
@@ -207,3 +236,7 @@ ros2 run foxglove_keypoint_publisher foxglove_keypoint_publisher_node --ros-args
 - image_publisher (for static images)
 - v4l2_camera (for camera input)
 - foxglove_keypoint_publisher (for visualization)
+
+## License
+
+This package is released under the **GNU Affero General Public License v3.0 (AGPL-3.0-only)**. See the [`LICENSE`](LICENSE) file for the full text.

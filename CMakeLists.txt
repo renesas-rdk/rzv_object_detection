@@ -42,6 +42,25 @@ ament_target_dependencies(${TARGET_OBJ_DET_YOLOX}
 )
 
 # create target
+set(TARGET_RPS_DET_YOLOX yolox_rps_detection)
+add_executable(${TARGET_RPS_DET_YOLOX}
+  src/yolox_rps_detection_node.cpp
+)
+
+# include directories
+target_include_directories(${TARGET_RPS_DET_YOLOX} PUBLIC ${SHARED_INCLUDE_DIRS})
+
+# ROS2 dependencies
+ament_target_dependencies(${TARGET_RPS_DET_YOLOX}
+  rclcpp
+  sensor_msgs
+  geometry_msgs
+  rzv_model
+  rzv_yolox
+  rzv_model_utils_ros2
+)
+
+# create target
 set(TARGET_OBJ_DET_YOLOv8 yolov8_object_detection)
 add_executable(${TARGET_OBJ_DET_YOLOv8}
   src/yolov8_object_detection_node.cpp
@@ -81,7 +100,7 @@ ament_target_dependencies(${TARGET_OBJ_DET_GOLD_YOLO}
 )
 
 install(
-  TARGETS ${TARGET_OBJ_DET_YOLOX} ${TARGET_OBJ_DET_YOLOv8} ${TARGET_OBJ_DET_GOLD_YOLO}
+  TARGETS ${TARGET_OBJ_DET_YOLOX} ${TARGET_OBJ_DET_YOLOv8} ${TARGET_OBJ_DET_GOLD_YOLO} ${TARGET_RPS_DET_YOLOX}
   EXPORT rzv_object_detection_targets
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib

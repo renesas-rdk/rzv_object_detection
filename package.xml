@@ -5,7 +5,7 @@
   <version>1.0.0</version>
   <description>Object detection package for Renesas RZ/V2H</description>
   <maintainer email="baoan.du.xj@renesas.com">Baoan Du</maintainer>
-  <license>Apache License 2.0</license>
+  <license>AGPL-3.0-only</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
