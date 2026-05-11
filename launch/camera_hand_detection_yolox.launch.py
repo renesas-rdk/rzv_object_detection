@@ -1,5 +1,5 @@
 # *********************************************************************************************************************
-#  Copyright (C) 2025 Renesas Electronics Corporation and/or its licensors.
+#  Copyright (C) 2026 Renesas Electronics Corporation and/or its licensors.
 #  SPDX-License-Identifier: AGPL-3.0-only
 # *********************************************************************************************************************
 
