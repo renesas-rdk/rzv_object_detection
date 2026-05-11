@@ -10,8 +10,8 @@
 #include <thread>
 #include <vector>
 
-#include "rzv_model_utils_ros2/model_utils.hpp"
 #include "rzv_model/utils.hpp"
+#include "rzv_model_utils_ros2/model_utils.hpp"
 #include "rzv_yolov8/yolov8_utils.hpp"
 
 namespace rzv_object_detection
@@ -113,7 +113,7 @@ Yolov8ObjectDetection::Yolov8ObjectDetection() : Node("Yolov8ObjectDetection")
 
   // Set model parameters
   if (!class_names_.empty()) {
-    obj_detect_model_->set_image_size(640); // This model uses 640 size images
+    obj_detect_model_->set_image_size(640);  // This model uses 640 size images
     obj_detect_model_->set_class_names(class_names_);
   }
   obj_detect_model_->set_confidence_threshold(confidence_threshold_);

@@ -10,8 +10,8 @@
 #include <thread>
 #include <vector>
 
-#include "rzv_model_utils_ros2/model_utils.hpp"
 #include "rzv_model/utils.hpp"
+#include "rzv_model_utils_ros2/model_utils.hpp"
 
 namespace rzv_object_detection
 {

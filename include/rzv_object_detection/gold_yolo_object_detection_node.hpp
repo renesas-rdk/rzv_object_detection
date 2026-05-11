@@ -22,6 +22,7 @@ class GoldYoloObjectDetection : public rclcpp::Node
 public:
   explicit GoldYoloObjectDetection();
   ~GoldYoloObjectDetection();
+
 private:
   void process_image(const sensor_msgs::msg::Image::SharedPtr msg);
 
