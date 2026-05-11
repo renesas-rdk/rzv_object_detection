@@ -47,6 +47,8 @@ def generate_launch_description():
             # publish hand landmark topic
             ('/bounding_box', '/object_detection_node/bounding_box'),
             ('/object_detect', '/object_detection/rps_hand_detect'),
+            # publish inference timing topic
+            ('/inference_timing', '/object_detection/inference_timing'),
         ],
         output='screen',
         arguments=['--ros-args', '--log-level', 'INFO']
@@ -71,6 +73,20 @@ def generate_launch_description():
         output='screen'
     )
 
+    # Add inference timing overlay node — displays pre/inference/post times as a Foxglove text overlay
+    inference_timing_overlay_node = Node(
+        package='foxglove_keypoint_publisher',
+        executable='inference_timing_overlay_node',
+        name='inference_timing_overlay_node',
+        remappings=[
+            # subscribe to inference timing topic
+            ('/inference_timing', '/object_detection/inference_timing'),
+            # publish overlay annotations
+            ('/inference_timing_visualization', '/inference_timing_visualization'),
+        ],
+        output='screen'
+    )
+
     # Foxglove bridge for visualization in Foxglove Studio
     foxglove_bridge_launch = IncludeLaunchDescription(
         FrontendLaunchDescriptionSource(
@@ -83,5 +99,6 @@ def generate_launch_description():
         image_publisher_node,
         object_detection_node,
         foxglove_hand_bbox_publisher_node,
+        inference_timing_overlay_node,
         foxglove_bridge_launch
     ])
