@@ -73,6 +73,8 @@ YoloXObjectDetection::YoloXObjectDetection() : Node("YoloXObjectDetection")
     this->create_publisher<geometry_msgs::msg::PoseArray>("bounding_box", qos_reliable_stream);
   diagnostic_timing_publisher_ = this->create_publisher<diagnostic_msgs::msg::DiagnosticStatus>(
     "inference_timing", qos_sensor_data);
+  object_detection_publisher_ =
+    this->create_publisher<std_msgs::msg::String>("object_detect", qos_sensor_data);
 
   // Log configuration
   RCLCPP_INFO(this->get_logger(), "ObjectDetection initialized");
@@ -115,6 +117,7 @@ YoloXObjectDetection::~YoloXObjectDetection()
   image_subscription_.reset();
   bbox_publisher_.reset();
   obj_detect_model_.reset();
+  object_detection_publisher_.reset();
   diagnostic_timing_publisher_.reset();
 }
 
@@ -158,6 +161,7 @@ void YoloXObjectDetection::process_image(const sensor_msgs::msg::Image::SharedPt
     }
     // Run object detection model
     bool has_valid_detections = false;
+    auto object_detection_name = std::make_unique<std_msgs::msg::String>();
     auto object_image_input = rzv_model::ModelInput{image, cv::Rect(0, 0, image.cols, image.rows)};
     auto result = obj_detect_model_->run<rzv_model::YOLOXDetectionResult>(object_image_input);
 
@@ -177,6 +181,7 @@ void YoloXObjectDetection::process_image(const sensor_msgs::msg::Image::SharedPt
             detection.confidence);
 
           has_valid_detections = true;
+          object_detection_name->data = detection.class_name.c_str();
 
           // Add bounding box to the pose array with class label and confidence
           rzv_model::UtilsROS::encode_bounding_box_to_poses(
@@ -189,6 +194,7 @@ void YoloXObjectDetection::process_image(const sensor_msgs::msg::Image::SharedPt
       // Publish only if we have valid detections
       if (has_valid_detections) {
         bbox_publisher_->publish(std::move(pose_array));
+        object_detection_publisher_->publish(std::move(object_detection_name));
 
         // Publish diagnostic timing information
         auto diagnostic_msg = rzv_model::UtilsROS::encode_inference_timing_diagnostic(

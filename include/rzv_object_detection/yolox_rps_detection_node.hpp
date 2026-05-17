@@ -9,6 +9,7 @@
 #include <memory>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
+#include <std_msgs/msg/string.hpp>
 #include <string>
 #include <vector>
 
@@ -31,6 +32,7 @@ private:
 
   // Publishers
   rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr bbox_publisher_;
+  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr object_detection_publisher_;
   rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticStatus>::SharedPtr diagnostic_timing_publisher_;
 
   // Model(s)
