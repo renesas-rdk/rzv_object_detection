@@ -184,17 +184,17 @@ void YoloXObjectDetection::process_image(const sensor_msgs::msg::Image::SharedPt
         }
       }
 
-      RCLCPP_DEBUG(this->get_logger(), "Finished processing image");
-      // Publish only if we have valid detections
-      if (has_valid_detections) {
-        bbox_publisher_->publish(std::move(pose_array));
-
-        // Publish diagnostic timing information
-        auto diagnostic_msg = rzv_model::UtilsROS::encode_inference_timing_diagnostic(
-          "YOLOX Object Detection Inference Timing", result->preprocess_ms, result->inference_ms,
-          result->postprocess_ms);
-        diagnostic_timing_publisher_->publish(std::move(diagnostic_msg));
+      if (!has_valid_detections) {
+        RCLCPP_DEBUG(this->get_logger(), "No valid detections; publishing empty bounding box");
       }
+
+      bbox_publisher_->publish(std::move(pose_array));
+
+      // Publish diagnostic timing information
+      auto diagnostic_msg = rzv_model::UtilsROS::encode_inference_timing_diagnostic(
+        "YOLOX Object Detection Inference Timing", result->preprocess_ms, result->inference_ms,
+        result->postprocess_ms);
+      diagnostic_timing_publisher_->publish(std::move(diagnostic_msg));
     }
   } catch (const std::exception & e) {
     RCLCPP_ERROR(this->get_logger(), "Error processing image: %s", e.what());
