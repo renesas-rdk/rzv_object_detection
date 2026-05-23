@@ -28,6 +28,7 @@ GoldYoloObjectDetection::GoldYoloObjectDetection() : Node("GoldYoloObjectDetecti
   this->declare_parameter("iou_threshold", 0.45f);
   this->declare_parameter("processing_queue_size", 5);
   this->declare_parameter("processing_threads", 1);  // Default to 1 for sequential processing
+  this->declare_parameter("image_qos_reliability", "reliable");
 
   RCLCPP_INFO(this->get_logger(), " Get parameters");
   // Get parameters
@@ -37,6 +38,7 @@ GoldYoloObjectDetection::GoldYoloObjectDetection() : Node("GoldYoloObjectDetecti
   confidence_threshold_ = this->get_parameter("confidence_threshold").as_double();
   iou_threshold_ = this->get_parameter("iou_threshold").as_double();
   int queue_size = this->get_parameter("processing_queue_size").as_int();
+  const auto image_qos_reliability = this->get_parameter("image_qos_reliability").as_string();
 
   // Load model config from YAML config
   // Fallback logic: User → YAML → default value
@@ -54,6 +56,23 @@ GoldYoloObjectDetection::GoldYoloObjectDetection() : Node("GoldYoloObjectDetecti
   qos_reliable_stream.reliable();             // Or use best_effort() for more aggressive dropping
   qos_reliable_stream.durability_volatile();  // Don't persist old messages
 
+  // Image subscription QoS is configurable so the node can interoperate with
+  // upstream camera publishers that use best_effort (typical for HW-accelerated
+  // GStreamer pipelines) without losing the DDS reliability handshake.
+  auto image_qos = rclcpp::QoS(queue_size);
+  image_qos.keep_last(queue_size);
+  if (image_qos_reliability == "best_effort") {
+    image_qos.best_effort();
+  } else if (image_qos_reliability == "reliable") {
+    image_qos.reliable();
+  } else {
+    RCLCPP_WARN(
+      this->get_logger(), "Unsupported image_qos_reliability '%s'; using reliable.",
+      image_qos_reliability.c_str());
+    image_qos.reliable();
+  }
+  image_qos.durability_volatile();
+
   auto qos_sensor_data = rclcpp::QoS(rclcpp::KeepLast(1));
   qos_sensor_data.best_effort();          // Only keep latest message
   qos_sensor_data.durability_volatile();  // Or use best_effort() for more aggressive dropping
@@ -64,7 +83,7 @@ GoldYoloObjectDetection::GoldYoloObjectDetection() : Node("GoldYoloObjectDetecti
 
   // Create subscription
   image_subscription_ = this->create_subscription<sensor_msgs::msg::Image>(
-    "/image_raw", qos_reliable_stream,
+    "/image_raw", image_qos,
     std::bind(&GoldYoloObjectDetection::process_image, this, std::placeholders::_1), options);
 
   // Create publisher
@@ -82,6 +101,8 @@ GoldYoloObjectDetection::GoldYoloObjectDetection() : Node("GoldYoloObjectDetecti
   RCLCPP_INFO(this->get_logger(), "Confidence threshold: %.2f", confidence_threshold_);
   RCLCPP_INFO(this->get_logger(), "IoU threshold: %.2f", iou_threshold_);
   RCLCPP_INFO(this->get_logger(), "Number of classes: %zu", class_names_.size());
+  RCLCPP_INFO(
+    this->get_logger(), "Image subscription QoS reliability: %s", image_qos_reliability.c_str());
   RCLCPP_INFO(
     this->get_logger(), "Subscribing to image topic: %s", image_subscription_->get_topic_name());
   RCLCPP_INFO(

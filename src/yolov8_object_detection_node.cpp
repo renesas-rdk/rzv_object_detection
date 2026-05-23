@@ -32,6 +32,7 @@ Yolov8ObjectDetection::Yolov8ObjectDetection() : Node("Yolov8ObjectDetection")
   this->declare_parameter(
     "dfl_sigmoid_mode", static_cast<int>(rzv_model::DFLSigmoidMode::AfterThreshold));
   this->declare_parameter("processing_threads", 1);  // Default to 1 for sequential processing
+  this->declare_parameter("image_qos_reliability", "reliable");
 
   RCLCPP_INFO(this->get_logger(), " Get parameters");
   // Get parameters
@@ -42,6 +43,7 @@ Yolov8ObjectDetection::Yolov8ObjectDetection() : Node("Yolov8ObjectDetection")
   iou_threshold_ = this->get_parameter("iou_threshold").as_double();
   int queue_size = this->get_parameter("processing_queue_size").as_int();
   cpu_dfl_multi_thread_ = this->get_parameter("cpu_dfl_multi_thread").as_bool();
+  const auto image_qos_reliability = this->get_parameter("image_qos_reliability").as_string();
 
   // Load model config from YAML config
   // Fallback logic: User → YAML → default value
@@ -72,6 +74,23 @@ Yolov8ObjectDetection::Yolov8ObjectDetection() : Node("Yolov8ObjectDetection")
   qos_reliable_stream.reliable();             // Or use best_effort() for more aggressive dropping
   qos_reliable_stream.durability_volatile();  // Don't persist old messages
 
+  // Image subscription QoS is configurable so the node can interoperate with
+  // upstream camera publishers that use best_effort (typical for HW-accelerated
+  // GStreamer pipelines) without losing the DDS reliability handshake.
+  auto image_qos = rclcpp::QoS(queue_size);
+  image_qos.keep_last(queue_size);
+  if (image_qos_reliability == "best_effort") {
+    image_qos.best_effort();
+  } else if (image_qos_reliability == "reliable") {
+    image_qos.reliable();
+  } else {
+    RCLCPP_WARN(
+      this->get_logger(), "Unsupported image_qos_reliability '%s'; using reliable.",
+      image_qos_reliability.c_str());
+    image_qos.reliable();
+  }
+  image_qos.durability_volatile();
+
   auto qos_sensor_data = rclcpp::QoS(rclcpp::KeepLast(1));
   qos_sensor_data.best_effort();          // Only keep latest message
   qos_sensor_data.durability_volatile();  // Or use best_effort() for more aggressive dropping
@@ -82,7 +101,7 @@ Yolov8ObjectDetection::Yolov8ObjectDetection() : Node("Yolov8ObjectDetection")
 
   // Create subscription
   image_subscription_ = this->create_subscription<sensor_msgs::msg::Image>(
-    "/image_raw", qos_reliable_stream,
+    "/image_raw", image_qos,
     std::bind(&Yolov8ObjectDetection::process_image, this, std::placeholders::_1), options);
 
   // Create publisher
@@ -101,6 +120,8 @@ Yolov8ObjectDetection::Yolov8ObjectDetection() : Node("Yolov8ObjectDetection")
   RCLCPP_INFO(this->get_logger(), "Confidence threshold: %.2f", confidence_threshold_);
   RCLCPP_INFO(this->get_logger(), "IoU threshold: %.2f", iou_threshold_);
   RCLCPP_INFO(this->get_logger(), "Number of classes: %zu", class_names_.size());
+  RCLCPP_INFO(
+    this->get_logger(), "Image subscription QoS reliability: %s", image_qos_reliability.c_str());
   RCLCPP_INFO(
     this->get_logger(), "Subscribing to image topic: %s", image_subscription_->get_topic_name());
   RCLCPP_INFO(
